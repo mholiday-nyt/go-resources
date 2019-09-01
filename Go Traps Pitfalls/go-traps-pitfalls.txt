@@ -1,0 +1,385 @@
+Go Traps and Pitfalls
+
+1. closures, goroutines, and free variables
+
+package main
+
+import (
+	"fmt"
+	"time"
+)
+
+func main() {
+	for i := 0; i < 10; i++ {
+		go func() {
+			fmt.Println(i)
+		}()
+	}
+	time.Sleep(2 * time.Second)
+}
+
+go vet "prog.go:11: loop variable i captured by func literal"
+
+and it prints 10, 10, 10 ...
+
+instead, go func(int i) { ... } (i)
+
+so that each value of the loop index is captured as a value in the goroutine
+
+* this is likely not just a goroutine issue but one that could impact
+* any closure, and it's not limited to go (but C++ has = capture rules)
+
+
+2. order of things in a channel
+
+example from Clapis: channel of HTTP requests
+function that reads the channel and spawns a goroutine to handle the request
+
+but then we don't know in what order the responses will be sent
+so the wrong 2nd request might get the response from the 1st, etc.
+
+the whole thing is thread-safe, but not actually correct if these
+requests came in on the same socket (or we don't know what socket to respond to)
+
+what the channel should have is func(w http.ResponseWriter, r *http.Request)
+and then if you make a goroutine, it will write to the correct response writer
+
+but still might be out-of-order on the same socket?
+
+
+3. GC and failure to yield in a goroutine
+
+original golang issue #10958:
+
+"Currently goroutines are only preemptible at function call points. Hence, it's
+possible to write a tight loop (e.g., a numerical kernel or a spin on an atomic)
+with no calls or allocation that arbitrarily delays preemption. This can result
+in arbitrarily long pause times as the GC waits for all goroutines to stop.
+
+In unusual situations, this can even lead to deadlock when trying to stop the world."
+
+** and so far as we know, go's deadlock detector will NOT detect this one
+
+so it's necessary to make sure the function you put in a tight loop is not an
+inline function or otherwise yields
+
+you can use //go:noinline before the func definition
+
+from issue #12553
+
+"If performance is a concern unroll the loop or add an inner loop. Until we
+teach our compilers how to do this automatically this work around is the
+best advice we can give."
+
+This example program will hang:
+
+package main
+
+import (
+    "fmt"
+    "runtime"
+    "time"
+)
+
+func test2() {
+    for i := 1; ; i++ {
+        fmt.Println(i, time.Now())
+    }
+}
+
+func test() {
+    a := 100
+    for i := 1; i < 1000; i++ {
+        a = i*100/i + a
+    }
+}
+
+func main() {
+    runtime.GOMAXPROCS(2)
+    go test2()
+    for {
+        test()
+    }
+}
+
+"GC eventually tries to run, successfully stops the goroutine running test2,
+and then hangs forever trying to stop the goroutine that is doing for { test() }"
+
+EXPERIMENT: put runtime.Gosched() into test's body
+
+this version is shorter and does the same thing ...
+
+go func() {
+    var i byte
+    // infinite loop due to byte overflow!
+    for i = 0; i <=255; i++ {
+    }
+}()
+
+runtime.Gosched()   // yield execution
+runtime.GC()
+fmt.Println("Done") // not gonna happen
+
+as an alternative to non-inline functions, use channels, as they can preempt
+
+same problem in this code iff myList is of type byte
+
+go func() {
+    for i := range myList {
+        for ; i <= 255; i++ {
+            ...
+        }
+    }
+}
+
+
+4. Another failure-to-yield problem
+
+    go func() {
+        for i := 0; true ; i++ {
+        }
+    }()
+
+    time.Sleep(2 * time.Second)
+    fmt.Println("Done")
+
+func() will not yield; if there's not a free core to run the main goroutine
+then it won't get scheduled again and the program will not terminate even
+though it should drop out of main
+
+you can force this to happen via runtime.GOMAXPROCS(1)
+
+
+5. And another
+
+package main
+
+import (
+	"fmt"
+	"time"
+)
+
+func main() {
+	done := make(chan bool)
+	go func() {
+		time.Sleep(4 * time.Second)
+       		fmt.Println("Got here")
+		done <- true
+	}()
+	select {
+		case <- done:
+			fmt.Println("Done")
+		case <- time.After(2 * time.Second):
+			fmt.Println("Timeout")
+	}
+	time.Sleep(5 * time.Second)
+}
+
+Prints Timeout followed (after a short delay) "Got here" because go has no
+way of stopping the first goroutine while it sleeps
+
+
+6. Fun with done
+
+for {
+   select{
+     case job <- jobs:
+         process(job)
+     case <-done:
+         return
+    }
+}
+
+and somewhere else
+
+go worker()
+...
+done <- true
+
+The issue here is that it only works for one goroutine; the right answer
+is to close done instead of writing to it -- and check close in the select
+
+for {
+   select{
+     case job <- jobs:
+         process(job)
+     case _, ok := <-done:
+         if !ok {
+             ...
+         }
+    }
+}
+
+and somewhere else
+
+go worker()
+...
+close(done)
+
+
+like this:
+
+package main
+
+import (
+	"fmt"
+	"time"
+)
+
+func process(i int) {
+	fmt.Println(i)
+}
+
+func main() {
+	done := make(chan bool)
+	jobs := make(chan int)
+
+	go func() {
+		for {
+   			select {
+			case job := <- jobs:
+         			process(job)
+     			case _, ok := <-done:
+				if !ok {
+					fmt.Println("Done closed")
+	         			return
+				}
+    			}
+		}
+	}()
+	for i := 0; i < 5; i++ {
+		time.Sleep(1 * time.Second)
+		jobs <- i
+	}
+	close(done)
+	time.Sleep(5 * time.Second)
+}
+
+
+7. slice addressing exposes underlying array (also in Uglies)
+
+
+8. thoughts about channels & pointers:
+
+Ian Lance Taylor said, "In practice there are two kinds of pointers programs send
+on channels: pointers which transfer ownership of mutable data, and pointers which
+point to shared immutable data."
+
+==> let's keep it that way, because anything else is likely to be a food fight
+
+
+====
+
+Matthew Campbell
+
+Distributed Databases in Go
+
+HashiCorp Raft (or etcd Raft)
+LevelDB
+custom query language -- because that's where the power is
+
+How about JsonPath on top of a versioned JSON DB
+Allow long-running subscriptions, transactions, native versioning
+
+gopheracademy/ advent-2014 / parsers-lexers
+also look at PromQL from Prometheus
+
+the fun comes in building a redundant, fault tolerant DB
+stuff can fail at every point!
+
+using Blockchain tech to get Byzantine fault tolerance
+
+=====
+
+Tim Berglund I
+
+Three characteristics of a distributed system: computers that
+- operate concurrently
+- fail independently (maybe silently)
+- don't share a global clock
+
+[note that clock sync is a classic and hard problem in distributed computing]
+
+storage:
+--------
+- sharding
+- read replication
+- write replication (harder)
+
+strong consistency requires R + W > N 
+i.e. the number of replicas I read + the number I write is more than total
+number of replicas
+
+Basically an application of the pigeonhole principle:
+"There are N nodes that might hold the value. A write contacts at least W nodes -
+place a "write" sticker on each of these. A subsequent read contacts at least R
+nodes - place a "read" sticker on each of these. There are R+W stickers but only
+N nodes, so at least one node must have both stickers. That is, at least one
+node participates in both the read and the write, so is able to return the latest
+write to the read operation."
+
+
+CAP theorem: you can have any two of
+- consistency         (I can read the most recent thing I've written)
+- availability        (when I try to use it, it works)
+- partition-tolerance (the system needs to survive some nodes failing)
+
+If you want C & P (and you need P in the real world), then you have to
+give up A -- sometimes you may have to refuse a query because you
+don't have a quorum
+
+Otherwise you have to give up strong consistency and settle for eventual
+consistency -- which isn't well defined and doesn't necessarily give you
+deterministic results to a series of writes
+
+computation:
+------------
+
+hard to distribute a computational task across computers
+it's easier now than it was a decade ago (why?)
+map-reduce is not one of the things that's made life easier :-)
+Spark beats Hadoop? actually, it's kinda the same thing
+Kafka (his product :) makes everything a stream, no cluster required
+
+messaging:
+----------
+
+- it lets us have loosely coupled systems (hmm, microservices)
+- event (subscriber/publisher) systems (think MQTT with topics, brokers)
+
+what happens if the producer gets big? too big a topic for one computer?
+how about guaranteed delivery?
+
+Kafka to the rescue
+- message: immutable bytes
+- producer / consumer: clients outside the cluster
+- broken - part of the Kafka cluster
+
+Kafka value is when you past just using it as a message queue
+- distributed message queue - no global ordering within topics
+  [order only within each system partition, but you can map partitions usefully]
+- instead of taking events and storing them, what about computation on the
+  message streams as they fly along
+- lambda architecture made a mess (write batch & steam code separately)
+- instead do stream processing in-place
+- BUT he didn't really explain how the magic happened before $$$
+
+=========
+
+Dave Cheney on pointers in Go
+
+Nil pointers. Yes, you can still have nil pointers and panics because of them,
+however in my experience the general level of hysteria generated by nil pointer
+errors, and the amount of defensive programming present in other languages like
+Java is not present in Go. I believe this is for two three reasons:
+
+- Multiple return values [means] nil is not used as a sentinel for something went wrong.
+  Obviously this leaves the question of programmers not checking their errors, but this
+  is simply a matter of education.
+
+- Strings are value types, not pointers, which is the, IMO, the number one cause of null
+  pointer exceptions in languages like Java and C++.
+     var s string // the zero value of s is "", not nil
+
+- In fact, most of the built in data types, maps, slices, channels, and arrays, have a
+  sensible default if they are left uninitialized. [except maps will trap on insert]

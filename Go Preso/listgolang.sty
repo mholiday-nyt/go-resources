@@ -1,0 +1,116 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{listgolang}[2018/09/14 Go code listing; provided by Matt <matt@k0dvb.com>]
+
+\RequirePackage{listings}
+\RequirePackage{color}
+
+\definecolor{commentcolor}{rgb}{0.5,0.3,0.2}
+\definecolor{extracolor}{rgb}{0.95,0.4,0.2}
+\definecolor{stringcolor}{rgb}{0,0.45,0}       %\definecolor{stringcolor}{rgb}{0.25,0.55,0.25}
+\definecolor{commandcolor}{rgb}{0,0.1,1.0}
+\definecolor{outputcolor}{rgb}{0.9,0.15,0.55}
+\definecolor{keywordcolor}{rgb}{0.5,0,0.5}
+\definecolor{valuecolor}{rgb}{0.9,0,0.1}
+
+\lstdefinelanguage{Golang}%
+{keywords={break,case,const,continue,default,defer,else,fallthrough,for,%
+func,go,goto,if,import,interface,map,package,range,return,select,struct,%
+switch,type,var,check,handle,contract},
+sensitive=true,
+morecomment=[l]{//},
+morecomment=[s]{/*}{*/},
+morestring=[b]',
+morestring=[b]",
+morestring=[s]{`}{`},
+}
+
+% Go style for highlighting
+\newcommand\golangstyle{\lstset{
+language=Golang,
+columns=fixed,
+basewidth={0.6em,0.6em}, % use 0.5em for inconsolata, 0.6 for lucida mono
+fontadjust=true,
+upquote=true,
+%lineskip=-1pt,
+%basicstyle=\ttfamily\footnotesize\color{red},%\fontfamily{zi4}\selectfont
+basicstyle={\ttfamily\footnotesize\color{valuecolor}},
+identifierstyle={\color{black}}, 
+aboveskip=0.166in,
+xleftmargin=0.2in,
+tabsize=4,
+%frame=tb,                         % Any extra options here
+alsodigit={.},
+%otherkeywords={\%, \&, \|, \^, \@, \~},% not safe to use literate for these symbols!
+keywordstyle=\bfseries\color{keywordcolor},
+emph={append,cap,close,complex,copy,delete,imag,len,make,new,print,println,real}, 
+emphstyle=\color{keywordcolor},
+emph={[2]true,false,nil,iota},
+emphstyle=[2]\color{commandcolor},
+emph={[3]string,uint,uint8,uint16,uint32,uint64,int,int8,int16,int32,int64,%
+bool,float32,float64,complex64,complex128,byte,rune,uintptr,error,chan},
+emphstyle=[3]\color{commandcolor},
+emph={[4]unsafe,panic,recover},
+emphstyle=[4]\color{extracolor},
+emph={[5]Println,Printf,Error,Print,Fprintln,Fprintf,Sprintf,Fatal,Errorf,%
+Fscan,Fscanf,Fscanln,Scan,Scanf,Scanln,Sprint,Sprintln,Sscan,Sscanf,Sscanln,%
+Fatalf,Fatalln,Panic,Panicf,Panicln},
+emphstyle=[5]\color{black},%optionally outputcolor
+stringstyle=\color{stringcolor},
+showstringspaces=false,           % only enable this is very specific situations
+commentstyle=\color{commentcolor}\itshape,
+literate=*%
+    {:}{{{\color{black}:}}}1
+    {;}{{{\color{black};}}}1
+    {.}{{{\color{black}.}}}1
+    {,}{{{\color{black},}}}1
+    {[}{{{\color{black}[}}}1
+    {]}{{{\color{black}]}}}1
+    {(}{{{\color{black}(}}}1
+    {)}{{{\color{black})}}}1
+    {\{}{{{\color{black}\{}}}1
+    {\}}{{{\color{black}\}}}}1
+    {.0}{{{\color{valuecolor}.0}}}2
+    {.1}{{{\color{valuecolor}.1}}}2
+    {.2}{{{\color{valuecolor}.2}}}2
+    {.3}{{{\color{valuecolor}.3}}}2
+    {.4}{{{\color{valuecolor}.4}}}2
+    {.5}{{{\color{valuecolor}.5}}}2
+    {.6}{{{\color{valuecolor}.6}}}2
+    {.7}{{{\color{valuecolor}.7}}}2
+    {.8}{{{\color{valuecolor}.8}}}2
+    {.9}{{{\color{valuecolor}.9}}}2
+    {:=}{{{\color{valuecolor}:=}}}2
+    {<-}{{{\color{valuecolor}<-}}}2
+    {...}{{{\color{valuecolor}...}}}3
+    {0x0}{{{\color{valuecolor}0x0}}}3
+    {0x1}{{{\color{valuecolor}0x1}}}3
+    {0x2}{{{\color{valuecolor}0x2}}}3
+    {0x3}{{{\color{valuecolor}0x3}}}3
+    {0x4}{{{\color{valuecolor}0x4}}}3
+    {0x5}{{{\color{valuecolor}0x5}}}3
+    {0x6}{{{\color{valuecolor}0x6}}}3
+    {0x7}{{{\color{valuecolor}0x7}}}3
+    {0x8}{{{\color{valuecolor}0x8}}}3
+    {0x9}{{{\color{valuecolor}0x9}}}3
+    {0x0}{{{\color{valuecolor}0x0}}}3
+    {0X1}{{{\color{valuecolor}0X1}}}3
+    {0X2}{{{\color{valuecolor}0X2}}}3
+    {0X3}{{{\color{valuecolor}0X3}}}3
+    {0X4}{{{\color{valuecolor}0X4}}}3
+    {0X5}{{{\color{valuecolor}0X5}}}3
+    {0X6}{{{\color{valuecolor}0X6}}}3
+    {0X7}{{{\color{valuecolor}0X7}}}3
+    {0X8}{{{\color{valuecolor}0X8}}}3
+    {0X9}{{{\color{valuecolor}0X9}}}3
+}}
+
+% Go environment
+\lstnewenvironment{golang}[1][]
+{
+\golangstyle
+\lstset{#1}
+}
+{}
+
+% Go for external files
+\newcommand\golangfile[2][]{{\golangstyle\lstinputlisting[#1]{#2}}}

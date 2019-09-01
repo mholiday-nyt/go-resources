@@ -1,0 +1,112 @@
+What's in your software?
+
+two things we want:
+
+- identifiability
+- reproduceability
+
+git + tags
+no dirty repos -> cloud
+version ID in executable, stats, messages
+
+BE SURE to push your tag up to ORIGIN
+
+================================================================================
+
+## we assume we're building in a git repo (only) and that we've
+## tagged at least once so we have a version similar to 0.7.32-2-gdb79f94
+
+version=$(shell git describe --tags --long --dirty)
+
+## verify we're clean in git
+
+.PHONY: committed
+committed:
+	@git diff --exit-code > /dev/null || (echo "** COMMIT YOUR CHANGES FIRST **"; exit 1)
+
+================================================================================
+
+// MUST BE SET by `go build -ldflags "-X main.version=999"`; do not remove or modify
+var version string
+
+================================================================================
+
+bvi: $(SOURCES)
+	go build -mod=vendor -ldflags "-X main.version=$(version)" -o $@ ./cmd/bvi
+
+================================================================================
+
+var	(
+    . . . 
+
+    versions = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "bvi_info",
+			Help: "Information about the BVI build.",
+		},
+		[]string{"version", "started"},
+	)
+)
+
+// RecordVersion puts out a stat that lets Prometheus see the s/w version
+func RecordVersion(version, started string) {
+	versions.WithLabelValues(version, started).Set(1)
+}
+
+func init() {
+	. . .
+
+	prometheus.MustRegister(versions)
+}
+
+================================================================================
+
+	started := time.Now().UTC().Format(time.RFC3339)
+
+	// we should only need to do this once, so Prometheus will
+	// show the version and start time in a fixed "info" counter
+
+	stats.RecordVersion(version, started)
+
+================================================================================
+
+. . .
+
+# HELP bvi_info Information about the BVI build.
+# TYPE bvi_info gauge
+bvi_info{started="2019-07-17T15:17:13Z",version="0.9.0-0-gf1b21b3"} 1
+
+================================================================================
+
+you can also dump module info to Prometheus; see
+https://povilasv.me/exposing-go-modules-to-prometheus/
+
+================================================================================
+
+## push the docker container to AWS with a version tag
+## it will fail if we reformat or otherwise aren't clean ...
+
+.PHONY: check
+check: gofmt golint govet staticcheck
+	@echo checked $(MAKEDIR) ok
+
+.PHONY: docker
+docker: build/Dockerfile $(SOURCES)
+	cat build/Dockerfile | sed -e "/FIXME/s/FIXME/${version}/" | docker build -t cortex-bvi:latest . -f -
+
+.PHONY: publish
+publish: check committed test build/Dockerfile $(SOURCES)
+	make docker
+	docker tag cortex-bvi:latest 392385672822.dkr.ecr.us-east-1.amazonaws.com/bvi:$(version)
+	eval $(awslogin)
+	docker push 392385672822.dkr.ecr.us-east-1.amazonaws.com/bvi:$(version)
+
+## kill & restart the pod; we will force a build every time
+
+.PHONY: deploy
+deploy: deploy/bvi-deployment.yaml
+	eval $(awslogin)
+	kubectl delete deployment bvi-app
+	cat deploy/bvi-deployment.yaml | sed  -e "/FIXME/s/FIXME/${version}/" | kubectl apply -f -
+	kubectl apply -f deploy/bvi-svc.yaml
+

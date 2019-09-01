@@ -1,0 +1,561 @@
+\documentclass[compress,t,11pt]{beamer}
+\usetheme[sectionpage=none]{metropolis}           % Use metropolis theme
+% \usetheme{Boadilla}
+% \useinnertheme{circles}
+\usefonttheme{serif}
+\definecolor[named]{Gray}{RGB}{111,112,114}
+\definecolor[named]{DarkGray}{RGB}{48,48,48}
+\definecolor[named]{Cardinal}{RGB}{179,22,34}
+\usepackage[T1]{fontenc}
+\usepackage[altbullet]{lucidabr}
+\usepackage{textcomp}
+\usepackage{upquote} % needed to make straight quotes work in listings
+\usepackage{listgolang}
+\usepackage{mathtools}
+\usepackage{comment}
+\usepackage{tikz}
+\usetikzlibrary{trees,shapes,plotmarks,arrows,er,automata,petri,topaths}
+\usepackage{pifont}
+\usepackage{clrscode}
+\usepackage{setspace}
+
+% In theory, but it breaks here
+%\usepackage[symbol]{footmisc}
+%\renewcommand{\thefootnote}{\fnsymbol{footnote}}
+
+% 1   asterisk    *       2   dagger  †       3   double dagger   ‡
+% 4   section symbol  §   5   paragraph   ¶   6   parallel lines  \\
+% 7   two asterisks   **  8   two daggers ††  9   two double daggers  ‡‡
+
+\setbeamercolor{palette primary}{fg=white,bg=Cardinal}
+\setbeamercolor{palette secondary}{fg=white,bg=Gray}
+\setbeamercolor{palette tertiary}{fg=white,bg=Cardinal}
+\setbeamercolor{palette quaternary}{fg=white,bg=Gray}
+\setbeamercolor{palette sidebar primary}{fg=white,bg=Cardinal}
+\setbeamercolor{palette sidebar secondary}{fg=white,bg=Gray}
+\setbeamercolor*{titlelike}{fg=Cardinal}
+\setbeamercolor{structure}{fg=Gray}
+\setbeamercolor{title separator}{fg=Cardinal}
+\setbeamercolor{alerted text}{fg=Cardinal}
+
+\newcommand{\card}[1]{\ensuremath{\left|#1\right|}}
+\newcommand{\norm}[1]{\ensuremath{\|#1\|}}
+
+\title[Programming in Go]{\bf Programming in Go:\\ the Good, the Bad, and the Ugly}
+\author{Matt Holiday} 
+\institute[CP]{Cardinal Peak}
+\date{25 September 2018} 
+% \defbeamertemplate*{headline}{split theme}{}
+% \setbeamertemplate{navigation symbols}{}
+% \setbeamertemplate{frametitle}{\color{Cardinal}\bfseries\vskip 6pt\insertframetitle}
+\titlegraphic{\hfill\includegraphics[width=.25\textwidth,height=.25\textheight]{cp-logo-2x.png}}
+% \titlegraphic{\includegraphics[width=.25\textwidth,height=.25\textheight]{cp-logo-2x.png}}
+\setbeamerfont{footline}{series=\bfseries\selectfont}
+\setbeamersize{text margin left=12pt,text margin right=12pt}
+\linespread{1.0}
+\metroset{block=fill}
+
+\begin{document}
+\frame{\titlepage} 
+
+\section{Introduction}
+\begin{frame}
+    \frametitle{A better C from the folks who created Unix \& C}
+    {\setstretch{1.2} ``It must be familiar, roughly C-like. \par
+    \vspace{0.2\baselineskip}
+    Programmers working at Google are early in their careers and are most familiar
+    with procedural languages, particularly from the C family. \par
+    \vspace{0.2\baselineskip}
+    The need to get programmers productive quickly in a new language means that the
+    language cannot be too radical.'' --- Rob Pike \\}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Why did they do it?}
+    Pain points at Google:
+    \begin{itemize}
+    \item slow builds
+    \item uncontrolled dependencies
+    \item each programmer using a different subset of the language
+    \item poor program understanding (code hard to read, poorly documented, and so on)
+    \item duplication of effort
+    \item cost of updates
+    \item version skew
+    \item difficulty of writing automatic tools
+    \item cross-language builds
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Designed for the kind of problems Google wants to solve}
+    It's taking over the infrastructure/container world:
+    \begin{itemize}
+        \item Docker 
+        \item Kubernetes 
+        \item Prometheus 
+        \item OpenStack Swift \& Cinder
+        \item . . .
+    \end{itemize}
+\end{frame}
+
+\section{What It Is}
+\begin{frame}
+    \frametitle{Concurrency based on Tony Hoare's CSP}
+    {\setstretch{1.5} ``CSP has the property that it is easy to add to
+    a procedural programming model without profound changes to that model. \par
+    \vspace{0.2\baselineskip}
+    CSP is practical for Go and for Google. When writing a web server, the
+    canonical Go program, the model is a great fit.'' --- Rob Pike \\}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Concurrency}
+    \only<1-4>{Goroutines --- lightweight coroutines multiplexed onto threads \par}
+    \vspace{\baselineskip}
+    \only<2-4>{Channels (similar to pipes in Unix), rendezvous model \par
+        \begin{block}{Don't communicate by sharing memory;}
+        instead, share memory by communicating.
+        \end{block}
+    }
+    \vspace{\baselineskip}
+    \only<3-4>{Select statement to allow multiplexing channels \par}
+    \vspace{\baselineskip}
+    \only<4-4>{Plus the ``normal'' atomic/synchronization utilities \par}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Concurrency Example 1: Channels}
+\begin{golang}
+results := make(chan int)
+
+// asynchronously yield a stream of integers
+
+go func(limit int, out chan<- int) {
+    for i := 0; i < limit; i++ {
+        out <- i
+    }
+
+    close(out)  // else we would deadlock
+}(10, results)
+
+// receive them when they're ready
+
+for i := range results {
+    fmt.Println(i)
+}
+\end{golang}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Concurrency Example 2: Select}
+\begin{golang}
+odds := make(chan int)
+evens := make(chan int)
+
+go func() {
+    for i := 0; i < 12; i++ {
+        if j := rand.Intn(32); j % 2 == 1 {
+            odds <- j
+        } else {
+            evens <- j
+        }
+    }
+
+    close(odds)
+    close(evens)
+}()
+
+. . . 
+\end{golang}
+\end{frame}
+\begin{frame}[fragile]
+\frametitle{Concurrency Example 2: Select}
+\begin{golang}
+. . .
+
+for evens != nil && odds != nil {
+    select {
+        case i, ok := <-odds:
+            if ok {
+    	        fmt.Printf("odd %v\n", i)
+    	    } else {
+                odds = nil
+            }
+        case j, ok := <-evens:
+            if ok {
+                fmt.Printf("even %v\n", j)
+    	    } else {
+                evens = nil
+            }
+    }
+}
+\end{golang}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Object-orientation based loosely on Oberon-2}
+    \only<1-4>{Interfaces \par}
+    \vspace{\baselineskip}
+    \only<2-4>{Type-bound functions (methods) \par}
+    \vspace{\baselineskip}
+    \only<3-4>{Composition (has-a) --- {\bf not} inheritance (is-a) \par}
+    \vspace{\baselineskip}
+    \only<4>{Duck-typing for interface conformance \par}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Object-Oriented Example 1: Interfaces}
+\begin{golang}
+// this interface is pre-declared in Go
+type Stringer interface {
+    String() string
+}
+
+type Pair struct {
+    Path string
+    Hash string
+}
+
+func (p Pair) String() string {
+	return fmt.Sprintf("Hash of %v is %v", p.Path, p.Hash)
+}
+
+// Pair is now an implementation of the Stringer interface
+// even though it never said so explicitly in the code
+. . .
+\end{golang}
+\end{frame}
+\begin{frame}[fragile]
+    \frametitle{Object-Oriented Example 1: Interfaces}
+\begin{golang}
+. . .
+
+p := Pair{"/usr", "0xfdfe"}
+
+// these two calls are identical
+
+fmt.Println(p)
+fmt.Println(p.String())
+
+// prints Hash of /usr is 0xfdfe
+\end{golang}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Object-Oriented Example 2: Composition}
+\begin{golang}
+type Pair struct {
+    Path string
+    Hash string
+}
+
+type PairWithLength struct {
+    Pair
+    Length int
+}
+
+// construction requires explicit sub-parts
+// then we get direct access to contained parts
+
+p := PairWithLength{Pair{"/usr", "0xfdfe"}, 121}
+
+fmt.Println(p.Path, p.Length)
+\end{golang}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Object-Oriented Example 2: Composition}
+\begin{golang}
+type Reader interface {
+    Read(p []byte) (n int, err error)
+}
+
+type Writer interface {
+    Write(p []byte) (n int, err error)
+}
+
+type ReaderWriter interface {
+    Reader
+    Writer
+}
+
+// one of several ways to do this, all equal
+type ReaderWriterCloser interface {
+    ReaderWriter
+    Close() error
+}
+\end{golang}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Designed to be fast \& easy}
+    \only<1-3>{Modules (``packages'') carry transitive import data \\
+    \vspace{0.3\baselineskip}
+    ({\bf no} include processing as in C $\implies$ fast parallel compiles) \par}
+    \vspace{\baselineskip}
+    \only<2-3>{Statically-linked binaries \par}
+    \vspace{\baselineskip}
+    \only<3>{Tools are built in (build/test/lint/format etc.)}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Designed to be fast \& easy}
+    {\setstretch{1.2} ``Go is an attempt to combine the ease of 
+    programming of an interpreted, dynamically typed language with the 
+    efficency and safety of a statically typed, compiled language.'' 
+    (web)\\}
+\end{frame}
+
+\begin{frame}
+    \frametitle{What else?}
+    \only<1-5>{\alert{Garbage collection} \par}
+    \vspace{\baselineskip}
+    \only<2-5>{Reflection \& down-casting, variable arguments \par}
+    \vspace{\baselineskip}
+    \only<3-5>{Good support for JSON, etc. encoding through reflection \par}
+    \vspace{\baselineskip}
+    \only<4-5>{Unsafe operations \& interfacing to C \par}
+    \vspace{\baselineskip}
+    \only<5>{Easy vendoring, auto download from github, etc.}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{JSON support}
+\begin{golang}
+type Response struct {
+    Page  int      `json:"page"`
+    Words []string `json:"words,omitempty"`
+}
+
+r := &Response{Page: 1, Words: []string{"up", "lo", "an"}}
+
+j, _ := json.Marshal(r)              // ignoring errs
+fmt.Println(string(j))
+
+var r2 Response
+
+json.Unmarshal(j, &r2)               // ignoring errs
+fmt.Fprintf(os.Stdout, "%#v\n", r2)
+
+// {"page":1,"words":["up","lo","an"]}
+// main.Response{Page:1, Words:[]string{"up", "lo", "an"}}
+\end{golang}
+\end{frame}
+
+\section{What It Isn't}
+\begin{frame}
+    \frametitle{What's missing?}
+    \only<1-4>{No support for generics (coming in 2.0) \par}
+    \vspace{\baselineskip}
+    \only<2-4>{No operator/function overloading, iterators, constant objects \par}
+    \vspace{\baselineskip}
+    \only<3-4>{Not much of a container class library \\
+    \vspace{0.2\baselineskip}
+    (what's there requires reflection using {\tt interface\{\}}) \par}
+    \vspace{\baselineskip}
+    \only<4>{Limited support for (semi-) functional programming}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Ugly \#1: Slice length vs capacity}
+\begin{golang}
+// let's make an array of 3 items
+
+a := [3]int{1, 2, 3}
+
+b := a[0:1]          // b is a slice of a's first item
+
+fmt.Println(b)       // prints [1]
+
+c := b[0:2]          // but the underlying array has 3 entries
+
+fmt.Println(c)       // prints [1 2]
+
+fmt.Println(len(b))  // prints 1
+fmt.Println(cap(b))  // prints 3
+
+b := a[0:1:1]        // this is what you probably meant
+\end{golang}
+\end{frame}
+\begin{frame}[fragile]
+    \frametitle{Ugly \#1: Slice underlying array}
+\begin{golang}
+a := [3]int{1, 2, 3}
+b := a[0:1]; c := b[0:2]
+
+b = append(b, 4)      // grows b, mutates a
+fmt.Println("a=",a)   // a= [1 4 3]
+fmt.Println("b=",b)   // b= [1 4]
+
+c = append(c, 5)      // grows c, mutates a
+fmt.Println("a=",a)   // a= [1 4 5]
+fmt.Println("c=",c)   // c= [1 4 5]
+
+c = append(c, 6)      // forces allocation!
+fmt.Println("a=",a)   // a= [1 4 5]
+fmt.Println("c=",c)   // c= [1 4 5 6]
+
+c[0] = 9              // mutates a different array!
+fmt.Println("a=",a)   // a= [1 4 5]
+fmt.Println("c=",c)   // c= [9 4 5 6]
+\end{golang}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Ugly \#2: Missing basic functions}
+\begin{golang}
+m := make(map[string]int)
+
+m["a"] = 1
+m["b"] = 2
+
+var keys []string
+
+for k, _ := range m {
+    keys = append(keys, k)
+}
+
+fmt.Println(keys)
+
+// prints [a b]
+// but you really wanted fmt.Println(keys(m))
+\end{golang}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Generics may yet be implemented}
+\begin{golang}
+// a contract defines requirements on the types
+
+contract mappable(k K, _ V) {
+    k == k
+}
+
+// note the aversion to using angle brackets <>
+
+func Keys(type K, V mappable)(m map[K]V) []K {
+	r := make([]K, 0, len(m))
+
+	for k := range m {
+		r = append(r, k)
+	}
+
+	return r
+}
+\end{golang}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Ugly \#3: Error handling}
+\begin{golang}
+// declared in package "os"
+// func Open(name string) (file *File, err error)
+
+file, err := os.Open("filename.ext")
+
+if err != nil {
+    log.Fatal(err)
+}
+
+defer file.Close()
+
+buffer := make([]byte, 5)
+len, err := file.Read(buffer)
+
+if err != nil {
+    log.Fatal(err)
+}
+\end{golang}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Error handling may yet improve}
+\begin{golang}
+// handle and check are proposed additions in Go 2.0
+
+func Do(filename string) error {
+    handle err {
+    	return fmt.Errorf("something bad happened %s: %v",
+                          filename, err)
+    }
+
+    file := check os.Open("filename.ext")
+
+    defer file.Close()
+
+    buffer := make([]byte, 5)
+    len := check file.Read(buffer)
+
+    . . .
+}
+\end{golang}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Beauty and the Beast}
+\begin{golang}
+func Do() *int {
+    // which of these will end up on the stack?
+
+    var a int
+    b := new(int)   // b is a *int
+
+    . . .
+}
+\end{golang}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Beauty and the Beast}
+\begin{golang}
+func Do() *int {
+    // that depends on how they're used
+
+    var a int       // a escapes, heap allocated
+    b := new(int)   // b can be put on the stack
+
+    a = 1
+    *b = 2
+
+    fmt.Println(*b)
+    return &a
+}
+
+func main() {
+	a := Do()
+	fmt.Println(*a)
+}\end{golang}
+\end{frame}
+
+\section{Some Remarks}
+\begin{frame}
+    \frametitle{Two views of Go: \#1}
+    {\setstretch{1.2} ``The rub is that it ignores the last 15--20 year
+    of compiler/language research. To me, it's effectively an assembly language
+    with CSP and implicit duck-typing. It shows in the amount of boilerplate
+    code that Go programmers write.'' (web)\par}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Two views of Go: \#2}
+    {\setstretch{1.2} ``The key point here is our programmers are Googlers,
+    they’re not researchers. They’re typically, fairly young, fresh out of school,
+    probably learned Java, maybe learned C or C++, probably learned Python.
+    They’re not capable of understanding a brilliant language but we want to
+    use them to build good software. So, the language that we give them has to
+    be easy for them to understand and easy to adopt.'' --- Rob Pike \\}
+\end{frame}
+
+\begin{frame}
+    \frametitle{The punch line}
+    I heard this at GopherCon:
+    \vspace{0.2\baselineskip}
+    \begin{block}
+        {{\bf\color{Cardinal}Q: what are Go engineers made from?}}
+        {\bf A: mostly from Java engineers!}
+    \end{block}
+    \par
+    \vspace{\baselineskip}
+    \only<2-2>{Java was once a better C, Go is (becoming) a better Java}
+\end{frame}
+\end{document}

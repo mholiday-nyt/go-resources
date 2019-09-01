@@ -1,0 +1,587 @@
+GopherCon 2018 Wednesday
+
+============================================================================================
+
+Accessible Go
+
+speaker is partially vision-impaired
+demos using Mac voice-over technology to read some Go code; results are awful & slow
+voice-over doesn't like punctuation (must be enabled) but then speaks every symbol
+clearly a better code TTS system is needed
+
+some hard-earned lessons from code reviews:
+- group code blocks logically, reduce jumping around in the code
+  (avoid early declarations of variables used later)
+  (put blank lines between logical groups)
+
+- keep names short & sweet (compared e.g., to Java, Objective-C) but meaningful, too
+  (avoid redundant info in the variable name)
+  (definitely avoid hungarian notation)
+
+- pronounceable names -- think about how TTS might pronounce them
+  e.g., total, add, but not tVec; github may become "geeth-ub"
+  words work better than acronyms / collections of consonants
+
+- consistent styling
+  (follow the style of existing code when you change it)
+  (or update the code to match a style change -- in a separate branch!)
+
+IDEA: go code screen reader would probably at least need a parser to understand the
+functions of code parts and then turn them into reasonable intents (perhaps not a
+literal reading but one that conveys how we understand it); so
+
+    a, b := callMe(c)
+
+becomes
+
+    "a and b get assigned the results of callMe with argument c"
+
+============================================================================================
+
+Going Serverless
+
+- functions
+  some people believe that serverless is writing a function
+  something like CGI scripts
+  maybe its supposed to be more like what RPC was supposed to be
+
+  xinetd example, small config defining the environment to make a daemon
+  so we don't have to write all the daemon logic all over again
+  and the daemon gets run when someone connects to the port
+  and the logic we write just uses stdin / stdout and doesn't even manage connections
+  all the connection-handling stuff moves to the provider
+
+- serverless = functions + events + managed services
+  write a single-purpose function
+  have an event framework provider that calls your function
+  have service management to get the stuff set up / updated
+  you can focus just on business value
+
+- use cases
+  * REST API one function per path
+
+Google cloud platform now moving to support go serverless similar to AWS lambda
+demo: go package with just an http handler function doing "hello world"
+demo also includes creating a test for the function
+
+$ go mod vendor     ## brings down all the stuff you depend on so you freeze it
+
+SEE https://github.com/kelseyhightower
+
+- don't forget to use a service-ready DB (e.g., one hosted by the provider)
+  (needs to be able to handle 1K+ calls)
+  (only one connection in pool per function call to avoid running out)
+
+- may need to manufacture events to monitor e.g. a web resource
+  poll it and feed events into a topic using e.g. a cron job
+
+- make default config that can be overridden to make test easier
+  use lazy loading by once.Do 
+
+- thinks about cold start time; but usually cold starts aren't too bad
+
+- trace the functions in your function so you get some visibility into what it does
+
+- voice dialogflow using google voice assistant
+  training phrases like "what's the weather at gophercon"
+  write a function that handles a web hook request
+
+============================================================================================
+
+Go in Debian - Stapelberg
+
+- debian web services, e.g. codesearch.debian.net
+  regexp over all debian software
+  Russ Cox Regular expression matching with a trigram index
+  
+  manpages.debian.org
+
+- ratt tool (rebuild all the things)
+  find issues before you upload your changes, determine what packages affected
+  because if you break stuff, it's down for a while until backed out
+
+- pk4 tool (makes the source of something available)
+
+    $ i3 -- version
+    $ pk4 i3  # downloads the source, puts us in the director
+    $ pk4-replace. # builds and installs the modified version over the original
+
+- programmatically working with Debian
+  SEE https://pault.ag/go/debian
+
+  read .deb files, look at metadata, calculate dependencies
+
+- how Go s/w is made available in Debian
+
+  Debian go packaging team, 64 volunteers / a few paid
+  no need to have formal Debian status
+
+  create tarball snapshot from git repo
+  add Debian-specific metadata (copyright, deps, maybe patches)
+  build it (dpkg-buildpackage)
+  distinguish between program and library package types
+  might need to add man pages, install scripts, etc. for programs
+  libraries need to be in /usr/share/gocode with source, used only to build programs
+  prefer users to use go tools to get code from repos
+
+  tooling: dh-make-golang, lintian to identify issues
+  must package/update transitive dependencies first
+
+  scaling issues: one library may break one of the other 1000+
+  CI to do pre-upload break detection
+  tooling: pgt-gopath creates GOPATH from Debian by extracting .debs
+  takes about 30s for changes to small packages (thanks go tools caching!)
+  built/test all the time
+
+- upstream best practices
+
+  * minimize dependencies: a little copying is better than a little dependency
+    (outside of the standard library)
+    (lots of Debian metadata)
+
+  * use the go tool - not a custom build system, nor custom build tags
+    (e.g., 64bit instead of amd64)
+
+  * test without vendoring
+    Debian throws away vendor/
+    never modify your vendor/ contents (can't handle per-package patches of dependencies)
+
+- challenges
+
+  * portability; Debian builds for many architectures that folks don't
+ 
+  * diamond problem: A requires newer B, but C is broken by that newer B
+    patches required
+    semver is supposed to help
+
+  * need volunteers!   https://go-team.pages.debian.net
+
+============================================================================================
+
+Contributing to Go
+
+"but the standard library is complete already"
+
+- contribute by using Go and report back your experience
+- notice confusion / stuff that's broken, and dig in
+- no fix is too small as a place to get started
+- 1.1 million developers; maye 0.01% hit an edge case, but that's 100+ people
+
+- contribute error reports so stuff gets fixed; writing a good report is a skill
+    what did you try to do?
+    what did you expect?
+    what did you see?
+    how can I reproduce it?
+
+- contribute reduced test cases; what's the smallest UT that can reproduce the bug?
+    reproduces 100%
+    small, fast program -- how fast is the bisect time, for example
+    runs on a common-ish OS (one of the big three)
+
+- reduced test cases can then suggest contributions (e.g., a fix)
+
+- contribute example code, particularly snippets
+  (remember, people scan looking for info, not reading in detail; focus on examples)
+  (e.g., examples for package "fmt" which has only one example)
+
+- contribute documentation
+  (or update stuff that's gotten out-of-date)
+  (e.g., scrypt.Key; recommended parms are from 2009 and need updating, what now?)
+
+  step 1: file an issue, even if you know what the fix should be
+  step 2: then work on the fix
+
+- contribute experimental code to golang.org/x repos (possible as prep for standardization)
+  that includes gopherbot and other build tools
+
+- trybot is used for CI on all possible commits
+  the web page result could be improved, e.g., which builds remain, put failing builds first
+  and colorize
+
+- how to get started?
+  * lower your expectations for your first contribution
+  * you need to build trust that you can do basic stuff right, e.g. commit messages
+  * no change is too small; small commits are more common (< 20 LoC)
+  * practice committing: bit.ly/goscratch
+
+- resources for help
+  golang-dev mailing list
+  slack #gocontributing #goreviews
+  post the CL # and explain where you got stuck
+  it's OK not to know and need help; be open to feedback
+
+============================================================================================
+
+Breakout: Go Programmer's Guide to Secure Connections (Liz Rice)
+
+"how a green padlock can help", i.e., using https
+but how do you get a certificate, etc., and get going
+SEE github.com/kelseyhightower kubernetes-the-hard-way 04-certificate-authority.md
+(441 lines of info!)
+
+- how do I set up secure connections
+- what do the error messages mean?
+- what are all the .crt, .key, .csr, & .pem files
+
+TLS - particularly for https: identify + encryption
+replaces SSL with a better version
+runs over TCP, which gets upgraded to TLS when desired, and then we send real messages
+end-to-end encryption
+
+"connection refused" has nothing to do with TLS, but instead you've got the wrong port
+
+what happens:
+syn
+ack
+hello
+hello
+get cert
+verify cert
+hello done
+get client cert
+veryify it
+generate pre-master secret
+generate session key
+finished
+finished
+...
+
+tls := &tls.config{
+    GetCertificate: utils.CertReqFunc("cert.pem","key.pem"),
+    VerifyPeerCertificate: utils.CertificateChains
+}
+
+cert is really a public key, while private key is kept internally
+but there's always a pair
+used to sign a message with a secure hash; private signs, public verifies at other end
+
+certificate authority is used to ensure the cert (public key) belongs to who it says it does
+so it's really a transitive trust arrangement
+
+X.509 cert -- signed by the CA (must have their root cert, usually loaded into browser s/w)
+- subject name
+- public key
+- issuer (CA) name
+- validity (time period)
+
+avoid using common name (deprecated 2000); use subject alternative name (SAN)
+go 1.11 allows you to ignore with a GODEBUG setting
+
+trusted cert authorities, known is system cert pools
+create a signing request
+    $ openssl req -key private-key -new -out csr
+for public-facing domains; not internal components of a distributed system
+because you may be asked to verify that the public domain is yours
+
+CLI tools for internal certs:
+  openssl - read openssl x509 -text, but doesn't easily support SAN
+  cfssl
+  mkcert  - for local development; installs CA to system/browsers
+  minica  - go; easy generation of key / certs
+
+$ cd ../ca; ls
+minica-key.pem minica.pem
+$ minica -domains liz-server
+
+.pem    base64 cert encoded from DER; ---BEGIN CERTIFICATE--- ... ---END CERTIFICATE---
+
+.cer    these three are raw binary DER
+.crt
+.der
+
+-key.pem has an RSA key
+
+$ openssl x509 -text ... -noout
+$ cp liz-server/* ../server
+
+
+server := &http.Server{
+    Addr: ":8080",
+    TLS: tlsConfig
+}
+
+now server sends certificate from liz_server but client doesn't trust it; not signed
+client sends "tls: bad certificate"
+client prints "cert signed by unknown authority"
+
+client needs
+
+data, _ := ioUtil.ReadFile("../ca/minica.pem")
+cp := x509.SystemCertPool()
+cp.AppendCertsFromPEM(data)
+
+clientConfig := &tls.Config{
+    RootCAs: cp,
+    GetCertificate: utils.CertReqFunc("cert.pem","key.pem"),   // from different directory!
+    VerifyPeerCertificate: utils.CertificateChains
+}
+
+now the client sees a sig-signed certificate that the server sent back
+
+in a microservices environment, we can use mTLS (mutually-authenticated TLS)
+client also sends a cert to the server to ID itself, too
+
+add
+    ClientAuth: tls.RequireAndVerifyClientCert,   // mTLS
+to the tlsConfig on the server
+
+but so far the client doesn't yet have a cert
+do the same thing as before to generate a liz-client cert
+
+and now the client can send a cert back the other way; but again the server
+doesn't trust it, because we didn't add minica stuff to the server!
+
+add
+    ClientCAs: cp,
+also to the server's tlsConfig
+
+TAKEAWAY
+- A PRIVATE KEY
+- A CERT FOR YOUR IDENTITY with a matching public key
+- the other end needs to trust the CA that signed your cert
+  (might have to append the CA's cert to the pool)
+
+server
+    ListenAndServeTLS if not http server
+
+client
+    tls.Dial (raw) or https
+    may need to add CA cert
+    TLSConfig.InsecureSkipVerify as an escape    // doesn't check for ID/cert signing,
+                                                 // just encryption
+
+mutually auth
+server
+    TLSConfig.ClientAuth
+    tls.RequireAndVer
+    may need to add cert
+
+client 
+    ...
+
+.pem is a file format
+.crt, .key etc tell you what they are inside, but binary
+
+SEE https://github.com/lizrice/secure-connections
+
+============================================================================================
+
+Breakout: Five mistakes C/C++ devs make writing Go
+(nice idea for a presentation, but very poorly done)
+
+- heap vs stack
+
+interface boxing forces alloction on the heap vs stack
+so you need to know what arguments a function takes
+
+escape analysis is subtle; need "-m" or "-m -m" when compiling to see it
+
+- memory leaks
+
+do not defer from the inside of a loop, particularly an infinite loop
+defer ONLY works when the function ends
+so you need to put it into a function and put that function into the loop
+
+slices are effectively a Protel descriptor, a pointer to a backing array + len/cap
+except that you can extend a slice
+you can specify the length and capacity when you make it
+that keeps you from reading the backing array past the slice
+
+a := [2]int{1,2}
+b := a[:1:1]   // this means that it's capacity is limited to 1 (three-index slice)
+
+if you don't do that, you might hold and be able to access the last element of a
+check this
+
+- goroutine leaks
+
+* infinite loops
+* deadlock
+
+one issue can be returning errors in a channel ? can't tell - slides went too fast
+
+use context or a done channel to terminate a goroutine
+
+- error handling in Go
+
+errors aren't just strings, they're error types which yield a readable string
+which means you can switch on error type
+
+switch err := err.(type) {
+    case *net.OpenErr:
+        return errors.Wrapf(err, "more text %s", parm)
+    default:
+        ....
+}
+
+wrap means you don't lose the context for the error you already had
+then you can use errors.Cause() to see more info
+the errors package can pick up a stack trace and give it back to you
+
+============================================================================================
+
+Breakout: Implementing a network protocol in Go
+
+by example, the IPv6 network discovery protocol (NDP)
+https://github.com/mdlayher/ndp
+
+IPv6 is about 20 years old, slow uptake even though IPv4 is out of addresses
+IPv6 is 20-25% of Google's incoming traffic
+
+IPv6 is less complex; removal of some legacy headers
+
+You may actually get a large IPv6 address space from your residential IP
+and thus avoid NAT
+
+ipv6-test.com
+ping6 2600::        ## Sprint
+
+NDP is a replacement for IPv4 ARP; query neighbor's MAC addr based on IP addr
+A: who has "B", tell "A"
+B: "B" is at <mac-addr>
+
+ICMPv6 header: type, code, 16-bit checksum, variable data portion
+NDP is IP/ICMP not Ethernet
+traffic type is multicast, not broadcast
+allows, options, router discovery, address assignment
+DHCP is not needed; use SLAAC via NDP, or mixed modes combining SLAAC and DHCPv6
+
+SLAAC
+A: send router solicitation
+R: sends router ad for "R", P::/64, use SLAAC, and valid for 24 hours
+A then computes its own globally-routable address
+
+NDP can be used internally for load balancing, serving router solicitations
+RFC 4861
+
+package content
+    ndp.Message (marshal/unmarshal)
+    ndp.Options (ditto for options)
+    ndp.Conn    (connections)
+
+From bytes to messages
+type NDP, code 0
+need ICMPv6 header needed to interprent NDP message
+
+top-level functions handle adding/removing ICMP header; marshal/unmarhsal methods hidden
+
+func ParseMessage(b []byte) (Message, error) {
+    // bounds check!
+    if len(b) < icmpLen {
+        return nil, IcmpError
+    }
+    switch t := ipv6.ICMPType(b[0]) {
+        ...
+    }
+    // unmarshall the rest of the bytes
+}
+
+type Option interface {}
+
+NDP neighbor solicitation (NS)
+type 135, 32 bits reserved + 128 bits IPv6 addr
+
+type NeighborSolicitation struct {
+    TargetAddress net.IP
+    Options       []Option
+}
+
+net.IP can handle IPv4, v6, or defective address; so it must be cheched
+To4 and To16
+
+if ip.To16() == nil || ip.To4() != nil
+// not an IPv6 addr
+
+func (ns *NeighborSolicitation) unmarshall () {
+    *ns = NeighborSolicitation{
+        TargetAddress: make(net.IP, net.IPv6Len)
+        Options:       options
+    }
+
+    copy(ns.TargetAddress, addr)
+}
+
+func marshal(m Message_ ([]byte, error) {
+    // validate before you allocate
+    // so you don't waste performance if the input is bad
+    
+    if err := checkIPv6(...); err != nil {
+        return nil, err
+    }
+}
+
+- message API implements the 4 basic NDP messages
+
+options are encoded TLV format, where the value is variable length
+1-byte type and length fields
+
+type Option interface {
+    Code() uint8
+    
+    marshall
+    unmarshall
+}
+
+for unmarshall, iterate over bytes
+do a bounds check, then read two bytes
+check the options type, skip if not supported
+pull out the value and add it to the output slice []Option
+
+implement maybe 90% of the options and export raw data for special cases
+otherwise you'll bloat your API with stuff nobody uses
+useful options: LL address, MTU, ...
+
+RawOption: tag, length, byte string, prefix info
+
+fuzzing byte parsers, because we'll get lots of slice bounds out of range
+
+https://github.com/dvyukov/go-fuzz
+throws arbitrary bytes at your parser to see if it will crash
+you can mark "interesting" inputs
+
+add a Fuzz() function that takes a byte string and returns an int (interesting = 1)
+0 = invalid but not interesting
+panic if we can't parse
+
+round-trip, unmarshall it, marshall it and unmarshall it
+$ CGO-ENABLED=0 go-fuzz-build github.com/mdlayher/ndp
+
+cat fuzz/crashers/...
+these strings can now be used as inputs to UTs to find & fix the bugs
+
+ndp.Conn
+- dial and/or listen
+- close
+- read & write
+
+golang.org/x/net is designed for advanced use cases, e.g., multicast
+handles more than the normal standard library net pkg
+
+golang.org/x/net/icmp
+golang.org/x/net/ipv6
+
+addr := " ... %eth0"
+ic, err := icmp.ListenPacket("ip6:ipv6-icmp", addr)
+
+may need to be root
+ReadFrom will return IPv6 control messages also
+WriteTo
+
+ifi, err := net.InterfaceByName("eth0")
+ndp.Conn := ndp.Dial(ifi, ndp.LinkLocal)
+
+** BUILD A TOOL to test out your package
+e.g., tool to capture & test network traffic
+
+cmd/ndp
+
+$ ndp [listen]
+$ sudo ndp rs              # solicit a router
+$ sudo ndp -i eth1 rs
+
+You could actually run this at home and see what the local router gives you
+Ubiquiti EdgeRouter Lite can also run ARM builds from Go (debug upstream)!
+
+============================================================================================
+
+Go newbies talk (skipped this)

@@ -1,0 +1,606 @@
+GOPHERCON 2019 - THURSDAY
+
+
+Russ Cox - On the path to Go 2
+
+- experiment & simplify; repeat
+
+- simplify by reshaping, e.g., find common code => built-ins, etc.
+  (adding append; also removing many old go tools -> go [tool])
+- simplify by redefining, e.g., allow append to take a string also
+- simplify by removing stuff (no example)
+- simplify by restricting, e.g., go source is UTF-8 (only); gofmt
+
+- this process is too simple; must be able to ship the changed Go
+- Go 1.0 March 2011 after public release fall 2009
+- twice a year releases; update tools rather than language
+- looking forward to Go 2: new language features allowed
+  (but "try" has already failed...)
+- error handling, generics, dependencies, tooling
+
+- errors: values & syntax
+  * errors are values, so we get to use all the remaining language
+    features with them, even more because they're interfaces
+  * structured error -> downcasting in packages (IsPathError)
+  * no one required error implementation
+  * add more interface methods to bridge the various implementations
+  * wrapping/unwrapping, but no stack trace in 1.13 in new package errors
+    fmt.Errorf %w verb does an implicit wrap, takes error argument (only)
+  * is/as functions - looping unwrap to find a particular error type
+  * 1.13 drops the formatting stuff for stack traces
+  * 1.13 abandoned "try" as well as check/handle idea from 2018
+    [removing explicit return removed places to trace/debug/breakpoint]
+
+- generics, still moving on?
+  * several abandoned experiments 2010--13
+  * new concept presented in 2018; still an experiment
+
+- dependency management, released from 1.11+ in parts
+  * import paths are string literals, e.g., URLs
+  * GOPATH from 2011, separating d/l packages from release
+  * no package versioning until 1.11; "make a new path"
+  * vendoring; lost "package uniqueness" where more than one version
+      might have the same given path
+  * from 2016, effort to find a single tool not just a convention
+  * from 2017, new dep tool; replaced by vgo/modules in 2018
+    [dep encouraged breaking changes without path change]
+  * we need incompatible API versions to have unique paths or other info
+      or we're back to the Unix shared library problem (!)
+  * import compatibility rule: must change path for breaking API change
+  * vendor directory not required, but in fact it may be preferred
+  * go.mod becomes the source of truth, not global GOPATH
+  * golang.org/x/tools/go/packages replaces go/build for end-user tooling
+  * now moving on to go module proxies (athens, other module proxies)
+  * a company can now run their own proxy to manage/limit dependencies
+  * 1.13 will use a mirror by default
+
+- other tools?
+  * after generics/error handling, maybe another quiet period
+  * another focus on tools
+  * individual tools we now have create some issues (on upgrade)
+      ("stop breaking my editor")
+  * gopls - speak language service protocol (LSP) in editors
+  * possible improvements to go vet and gofix (sp?)
+
+====================================================================
+
+
+Elena Morozova - Go at Uber
+
+- growth of features/microservices generating inconsistency
+- productivity problems:
+  * create new service: code structure, library choice, reuse
+  * context switch from one project to another due to
+      everybody doing their own thing -> dumb mistakes
+  * delivery of global features difficult - how to inject
+      them into all the different structures?
+  * need to have efficiency at scale; get that from consistency
+  * think about consistency early in your project!
+  * 1500 services, 20M lines of Go code
+
+- solutions
+  * dependency injection
+  * code structure
+  * mono repo
+
+- dependency injection
+  * new service requires duplication, e.g., logs, config
+       ... rate limits, health checks, ...
+  * what happens when we need to add a new feature, tracing
+    (getting that into all the unique service code bases)
+  * instead use dep inj framework
+  * DI container with knowledge of how to create logger, etc.
+  * provide defaults
+      di.NewApp(di.defaults, ...).Run()
+  * all main programs now look the same
+  * confine changes to the DI container defaults module
+  * server creates logger, config, tracer as needed
+  * UberFx module: https://github.com/uber-go/fx
+
+- consistent code structure (really product architecture)
+  * REST vs gRpc migration: must know how service works
+  * might require rewrite of a whole service ...
+  * instead, separate transport layer from biz logic
+  * handlers for transport
+  * controllers for biz logic
+  * structures defined to communicate between them
+       e.g., trip request
+  * same for storage: repo for DB, gateway to ext services
+       e.g., MySQL, DynamoDB; SQL vs noSQL
+       list-users-request between biz & storage layers
+       charge-payment-request between biz & payment gateway
+  * controllers don't change due to transport/storage changes
+       just add a new handler, etc.
+  * tools enforce the structure: "Clean Architecture"
+  * tool can make a new service structure automatically
+       also make mocks, observability stuff
+
+- monolithic repository
+  * hard to deliver global features with separate repos
+  * hard to ensure folks are using the same library version
+       or have up-to-date security fix
+  * tools can enforce library version checks, maybe even update
+  * or everybody just gets the current code when pulling update
+
+====================================================================
+
+
+Elias Naur - GUI "immediate mode" programming in Go
+
+Gio (GUI programming) and Scatter (Gio program to send encrypted
+messages using email addr as ID)
+
+For MacOS you need Xcode; only depends on the lowest-level platform
+libraries; GPU accelerated, cross-platform and 100% Go (OS-specific
+native interfaces optional)
+
+Uses WASM for web browsers
+
+Immediate mode -> UI state owned by the program; no callbacks,
+events are handled while drawing (no state in the library)
+
+import "gioui.org/ui/app"
+
+func main() {
+    go func() {
+       ... make a window ...
+    }
+    app.Main()
+}
+
+Running the program like any go tool, even from the present tools
+
+Use go modules!
+
+For Android, etc., you need the gio tool to make a package for the
+platform (e.g., apk for Android)
+
+Operations:
+- must re-specific everything every frame (redraw, ...)
+- add operations as needed, then give buffer to window drawer
+- only the app package depends on platform libs
+- ops to draw, transform, set colors, clip, etc.
+- invalidate to force redraws, e.g., for animation
+- need to declare mouse/keyboard handlers
+
+Input:
+- Events(k Key) []Event
+- Layout gets an event Queue that you process immediately
+- the redraw based on the results
+- register the area (rect) where you're sensing input events
+  with a handler
+- window distributes events across the subparts by area
+- events might be click, scroll
+
+Widgets such as a text editor, etc. are available to reuse;
+pass stuff down to them as subparts
+
+Why gio? simple, portable, and pure Go
+
+====================================================================
+
+
+Rebecca Stambler - Go, please stop breaking my editor
+
+- changes to go tooling break the editor due to all the tools
+  that need to be (re-)downloaded
+- how to install / configure editor with tools?
+- tools may not be updated quickly to match the newer Go versions;
+  may be slow
+- lots of editors & features, e.g. VSCode, etc.
+- e.g., go-to-definition with godef CLI tool, VSCode opens file at correct position
+- tools have their own CLI and format, etc.
+- go guru, godef, goimports, etc.
+- multiplex that across editors ...
+- tools don't stick around as servers, but are re-run each time, may re-do work
+- can we have a shared infrastructure among the tools?
+- lots of stuff was broken by go modules; some had to be forked to fix
+
+- new tool API to sit between tools & build system
+- this is the golang.org/x/tools/go/packages package to abstract from
+  modules / GOPATH / gb / etc.
+- now only a driver needs to be updated behind the API
+
+- Go team needs to pick features for all editors that are essential
+- but that's really what the language server protocol (LSP) standard did
+- core features such as completion, lookup
+- editors talk to LSP server for Go (based on file type detection)
+- gopls will be that server by default; maintained by Go team & community
+- currently in alpha
+- "go please" not "go-pulls" :-)
+- gopls will cache info since it's a server; speeds up completion, etc.
+- speed doesn't degrade with modules
+- extensible; just add a new function
+- more reliable: more testing, with a framework for testing
+- planned: lint/staticcheck, quick fix suggestions, unimported packages
+  (features to be driven by community input - issue list)
+
+golang/org/wiki/gopls
+go get golang.org/x/tools/gopls@latest
+
+====================================================================
+
+
+Patrick Hawley - Controlling the Go runtime
+
+- how to control the runtime
+- why to control the runtime: performance/correctness/profiling/debugging
+
+- runtime includes GC, goroutine scheduler (not tracing today)
+  https://golang.org/pkg/runtime/
+
+- GC
+  * runtime.GC() // start collecting now
+  * runtime.KeepAlive(obj interface{}) // don't collect obj now
+  * runtime.SetFinalizer(obj interface{}, f func) // finalize
+
+- scheduler
+  * runtime.GOMAXPROCS(n) // get/set max procs variable
+  * runtime.Goexit() // terminate goroutine
+  * runtime.Gosched() // yield processor
+  * runtime.LockOSThread() UnlockOSThread() // tie goroutine to a thread
+    (used for platform graphics libraries that need thread-local state;
+     also signal handlers)
+
+- other
+  * NumCPU() // number of CPUs available to current process
+  * Version() // Go release
+
+- runtime/debug - won't discuss more
+  * FreeOSMemory()
+  * SetMaxStack()
+  * SetGCPercent()
+  * SetPanicOnFault()
+  * SetMaxThreads()
+  * PrintStack()
+
+- some of these things might help performance, others might help
+  do torture testing/correctness of low-level calls
+- Goexit() is used by t.Fatal() calls in test code
+- we can use some of these calls for dynamic changes (CPU quota
+  changes externally to program)
+- see Uber automaxprocs
+
+- use GC() to test performance, e.g., in benchmarks
+  (slices of pointers vs slices of concrete types)
+
+- KeepAlive() is needed for certain types of system calls (files,
+  sockets)
+- SetFinalizer() is used to free cgo objects in low-level code
+  (again, on fds)
+
+- three new ways to control the runtime? suggested additions, speculative
+  * GoschedNext // pick next goroutine by color, not just any ready one
+  * GoAffinity  // set CPU affinity by color (group goroutines)
+  * GoCancel    // force all goroutines of a color to exit quickly
+
+- goroutine color = somehow assigned to a goroutine
+- NOTE scheduler already optimizes channels, wakes up the receiver
+  after a send operation (so there's a tie between goroutines)
+- affinity might help handle cache misses / security isolation
+- cancellation might avoid some complex uses of context cancellation
+
+Only affinity is really something new and useful IMHO; can't be done
+any other way today
+
+
+====================================================================
+
+LUNCH
+
+====================================================================
+
+Katie Hockman - Go module proxy: Life of a query
+
+- put a new package on Github for folks to use
+- want reproducible builds; need to make sure clients get correct dependencies
+- dependency source code might disappear from Github
+- bad actors might hack a package
+- options:
+  * no dependencies
+  * vendor everything (yes!)
+  * do nothing
+- better options:
+  * using modules
+  * module mirrors for hosted code
+  * checksum DB on mirrored modules
+
+a MODULE is a group of packages under a Github repo (for example)
+a VERSION is a semantic version with major.minor.patch numbering
+(every commit must be backwards compatible until changing major #)
+
+go.mod file with 
+
+    require (
+       <module name> <version>
+       ...
+    )
+
+go will pick the minimum version satisfying the dependencies among
+the users of a module -- OLDEST allowed version that fits
+
+go get must get the source and resolve the dependencies and possibly
+update the go.mod file; might need to pull down quite a bit that it
+doesn't need (if not using modules & go.mod)
+
+a MIRROR is a PROXY that caches copies of packages for good
+
+    go get -> origin server is the old way, fetch whole repos
+    
+    go get -> mirror -> origin server (only if required)
+
+    proxy can return go.mod for dependency information and not
+    necessarily pull down all the source if not required
+
+# get a suitable version
+go get go.dog/breeds
+
+$GOPROXY/go.dog/breeds/@v/list
+:gets a list v0.1.0, v0.2.0, etc
+
+$GOPROXY/go.dog/breeds/@v/v0.3.2.info
+:{"version":<version>, "time":_, }
+
+$GOPROXY/go.dog/breeds/@v/v0.3.2.mod
+:go.mod, go.info files
+
+$GOPROXY/go.dog/breeds/@v/v0.3.2.zip
+:now it gets the full download if needed
+
+# get latest
+go get go.dog/breeds@master
+
+$GOPROXY/go.dog/breeds/@v/master.info
+:{"version":<pseudo-version>, "time":_, }
+
+the mirror should always keep packages that were once available
+from the origin; faster downloads, less storage use
+
+if you're using a mirror you don't even need git installed
+
+the CHECKSUM DB has secure hashes of packages to ensure what's DLed
+is not changed
+
+old way, direct HTTPS to origin server, but the origin server might
+have been hacked, and also always got the latest commit, stable or
+not
+
+the go.sum file has a list of checksums of what the module had when
+it was downloaded the first time
+
+so now a user of your API building your dependencies (now his deps
+too :) can ensure that what's DLed is the same as what you used to
+build it initially
+
+the checksum DB doesn't protect you against (a) bugs in any package
+or (b) a hacked package when you first downloaded it -- the initial
+DL is considered to be the truth ("trust on [your] first use")
+
+also, you are at risk with an unknown proxy that might serve bad
+packages ...
+
+we could have a global checksum DB which tracks checksums for many 
+package DLs, but that creates a new risks & would be hard to audit
+
+NEW WAY: we use a tamper-proof DB - transparent log (merkle tree)
+
+https://research.swtch.com/tlog talks about it
+https://github.com/google/trillian is the actual DB
+
+so now the go command can verify that the chdcksum is known good
+because otherwise the tree would get messed up; inclusion proof
+means we have a record, and consistency proof means the record is
+consistent with what's been seen before => easy audit
+
+we STILL have the risk that the module isn't any good when it was
+put into the origin ... audit your dependencies (or hope that so
+many people use it that it's likely safe)
+
+COMMIT both go.sum and go.mod even if you don't vendor the actual
+code in your repo
+
+the mirror is on by default for 1.13+
+
+GO111MODULE="on"
+GOPROXY="https://proxy.golang.org,direct"
+GOPRIVATE variable for private stuff (not mirrored)
+
+index.golang.org is an index of modules available
+
+
+====================================================================
+
+Eric Chiang - PKI for gophers
+
+https://t.co/xZZSxNF8l3
+
+package ecdsa to create private & public keys
+sha512.Sum()
+ecdsa.Sign()
+then folks with public can check the signature
+
+certificates
+Usage: serving
+DNS names: "example.com"
+public key -- only one with the private key can serve for that domain
+
+certificate authorities - we look up certs for websites we surf
+we of course need base cert authority certs in our machines (roots)
+
+we only trust cert auths
+
+x509.Certificate{
+BasicConstraintsValid:true
+IsCA:true
+...
+}
+
+x509.CreateCertificate
+sign it with itself to make a self-signed cert
+MarshalPEM
+
+get cert file with B64 encoding
+
+we can serve certs by making a cert from our cert auth cert!
+
+DNSNames []string{"localhost"}
+ExtKeyUsage{x509.ExtKeyUsageServerAUth}
+
+we use our caPriv cert auth private key we made before to sign
+our own certificate
+
+make a cert pool and pass that to TLSClientConfig with the cert pool we made
+
+and now our HTTP server can serve HTTPS with a self-signed cert
+
+so the client side needs to make a certPool with root CAs including our
+self-signed certificate
+
+we can make a client cert also if we want TLS mutual auth; need to pass it
+to the client TLS transport in the http.Client; server must be set to 
+require and validate the client cert
+
+we can also have a server that does cert signing requests; no private
+information needs be shared
+
+make a server private key, and make a cert request with that key, and send
+it to the cert server
+
+the signing server validates the incoming request, and may also check
+other fields (DNS, etc.
+
+server makes a cert itself from the request, uses request public key and
+server secret key to make the outgoing cert
+
+authenticating CSRs: signing auth needs to check whether the incoming
+requests are from the domain advertised
+
+get JWT from Google GCP that certifies the site that's running in GCP;
+cert signing auth can then check the JWT to see that it's OK
+(server gets instance ID from JWT)
+
+revocation list from a cert auth tells folks to ignore bad certs; the
+list itself must be signed by the auth
+
+pkix.RevokeCertificate with server cert SerialNumber and then distribute it
+
+client can have VerifyPeerCertificate set in TLS config which will look
+through the revocation list to see if there's a bad cert
+
+revocation lists fail open; clients trust certs too much, so the list is
+only useful for a short list of certs (internal)
+
+OCSP is a protocol for testing a cert with a cert auth to see if it's
+still valid -- and get a response YES/NO with a time horizon for validity
+
+cert auth may not be prepared for OCSP traffic in large volumes; also,
+cert auth would know all the websites that are checked (privacy)
+
+OCSP stapling combines this result with other responses; use DialTLS in
+the client setup with a func to validate the OCSP response
+
+rotate a CA: pass out a replacement cert which will co-exist for a while
+with the old one, as the cert data can have multiple certs
+
+then get rid of the old one after some period of time
+
+SNI - server name identification; one server serving multiple DNS names
+(which cert to present)
+
+TLS includes host_name: bar.com as part of that; but also the server can
+pass back certs for each hosted domain and let the client work it out
+(or the server TLS setup can include a func to get the correct cert)
+
+SNI can be used for censorship; Go doesn't support encrypted SNI right
+now, because that's an arbitrary extension not standardized
+(also issues with domain fronting and LetsEncrypt challenges)
+
+server may want to treat different clients based on their TLS certs
+(if doing mutual auth); get the subject CommonName field from the 
+client certificate and use that in some way
+
+hardware-bound keys, e.g., YubiKey
+(private key bound into the h/w, with an API in which the device can
+do signing requests)
+
+use the PrivateKey field in a cert (an interface) with a Signer func
+import "pault.ag/go/ykpiv"
+
+GenerateEXWithPolicies to auth against a yubikey to generate an elliptic
+key in the h/w; server will end up calling out to the h/w
+
+never assume your private key is actually in memory
+
+Let's Encrypt - challenges in order to prove you own the domain, before
+it will issue a cert; then they'll make a free cert you can use all over
+
+autocert - use a local "secret" directory to cache certs, it could be
+an encrypted bucket in S3
+
+cert transparency - protects against evil CAs / bad certs; how would any
+one trust a small CA that claims to sign for a major domain (e.g., Google)
+
+CA signing a cert causes public trust, so it should be auditable; so the
+cert transparency log holds all certs that the CA signed, and others can
+check the log (similar to module checksums!)
+
+the server cert response will include a signed cert timestamp that can
+be used to index a transparency log for an inclusion proof
+
+you can audit the log yourself to see if someone made a bad cert for a
+domain you own -- for which you don't have the cert
+
+CLOSING THOUGHT -- ONLY USE HTTPS no matter what, even in the backend, 
+and set up all the necessary stuff to be safe
+
+
+====================================================================
+
+Oliver Stenbom - Contributing to the os package
+
+- based on a bug report: Garden not destroying containers with long 
+  filenames; this turned into a contribution to Go (+685 -225 lines!)
+- see the Go contribution website
+- what does this entail?
+
+- long file paths can't be removed (more than 4000 chars long!)
+- this was an issue in Go's OS package
+- possible vulnerability - could create lots of unremovable containers
+- the short-term solution was to use exec rm -rf (!!)
+- risks involved, and it's a bit ugly; what if it doesn't have rm
+- and it didn't solve the underlying problem
+
+- os.RemoveAll() is platform independent
+- calling Lstat() with a long path -> failure; really an issue in
+  open / state / remove
+- one can also use openat ...; *at() funcs take fd and name
+- so you can recursively handle files on level at a time
+
+- company created a version of RemoveAll using the *at() funcs
+- which meant changing the recursion pattern a bit, but with
+  a double for loop to handle batches in large dirs
+
+- this became an opportunity to contribute a fix back to Go
+- which they thought might not be too hard
+- opened issue #27029
+- got the OK to draft a solution
+- eventually closed against Go 1.12
+
+- hurdles:
+  * administrivia
+  * golang test suite; need to add more to the suite
+  * cross-platform compatibility (lots of platforms;
+    the *at() funcs are Unix-specific, not on Windows)
+  * non-existant syscalls (they were in /x/ only; so
+    they had to be implemented over again in the core)
+  * review cycle with lots of comments back & forth
+  * slow pace overall; freeze deadline coming up fast
+  * lots of bugs & inefficiencies even in the version
+    that got accepted; pull requests to fix the fix
+    after that
+
+- start with a general solution and make it specific to a
+  platform as needed (here with build flags)
+- how much do you have to do? you can let the community
+  help you after you implement basic stuff and fall back
+  to the old implementation when needed

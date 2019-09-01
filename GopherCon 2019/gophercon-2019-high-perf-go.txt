@@ -1,0 +1,441 @@
+High Performance Go - GopherCon 2019
+
+https://dave.cheney.net/high-performance-go
+https://dave.cheney.net/high-performance-go-workshop/gophercon-2019.html
+
+https://github.com/davecheney/high-performance-go-workshop
+
+Workshop today uses 1.13b
+
+
+BENCHMARKING
+
+ 1. use real h/w, must be idle; watch out for power saving/thermal throttling
+    ideally use dedicated h/w and network; disable stuff that gets in the way
+
+ 2. go test wants to run all tests, use -run=^$ to avoid them and use
+    -bench to pick the benchmarks to run (args are regexes)
+
+ 3. benchmarking wants to find N so that it takes 1 second to run overall
+
+    the -8 (or whatever) in the output listing shows GOMAXPROCS used
+   
+    you can use -cpu to set one or more values; e.g., -cpu=2,4,8,16
+
+ 4. use the -count=xx option to run it many times and take the average
+    (important for small benchmarks, high variance)
+   
+ 5. use the -benchtime=20x (e.g.) to select the number of iterations
+
+ 6. use benchstat to get the averages
+
+    you need +/- 1% (or maybe 2% at most); if not, make your laptop idle!
+
+ 7. use benchstat to compare old/new runs
+
+    % benchstat old.txt new.txt
+    name     old time/op  new time/op  delta
+    Fib20-8  37.9µs ± 2%  24.1µs ± 3%  -36.26%  (p=0.000 n=10+10)
+    
+    you need p=0.05 or lower, and you need not to have dropped too
+    many of the samples
+
+ 8. use b.ResetTimer() in order to exclude setup time in your benchmark
+    routine
+
+    use b.StopTimer() and b.StartTimer() to pause the timer in a loop
+    (if you need to reset things once per iteration ...)
+
+ 9. use b.ReportAllocs() to get info about allocations which you're
+    trying to reduce (!)
+    
+    these values are B[ytes]/op and allocs/op reported after the time/op
+
+    alternatively, set the -benchmem flag on the command line
+
+10. watch out for compiler optimizations!
+
+    in the popcnt example, function inlining or even removing as dead code;
+    we must introduce a side-effect to ensure the code isn't stripped, or
+    disable inlines with -gcflags=-l (-gcflags="-N -l" stops optimizations)
+    
+    // this used to be enough, now not anymore; "r" doesn't live past the
+    // benchmark
+    
+    var r uint64
+    ... loop here ...
+    _ = r
+
+    // we have to use an EXPORTED package variable, because the current
+    // compiler can't figure out that a public global var isn't accessed
+    
+    var R uint64
+
+    ... bechmark func ...
+        var r uint64
+        ... loop here ...
+        R = r
+
+    // only assigning to "R" at the end to reduce impact on the benchmark
+    // as "r" might be in a register, or at least nearby on the stack
+
+    NOTE that we didn't care about Fib20 because the recursive fib() func
+    can't be inlined; that might not apply to some other algorithm!
+
+11. use -gcflags=-S to see the assembly output (capital S)
+
+12. use math/rand to generate a random input when the function (like popcnt)
+    isn't sensitive to the input value (but using a random input might stop
+    any sort of h/w caching of results ...)
+
+    NOTE that you've got to stop the timer around calculating the random
+    number! ... AND you may need to set a very large -benchtime to overcome
+    the cost of starting/stopping for a short routine like popcnt()
+
+13. profiling a benchmark
+
+    The testing package has built in support for generating CPU, memory, and block profiles.
+
+    -cpuprofile=$FILE writes a CPU profile to $FILE.
+
+    -memprofile=$FILE, writes a memory profile to $FILE, -memprofilerate=N adjusts the profile rate to 1/N.
+
+    -blockprofile=$FILE, writes a block profile to $FILE.
+
+    Using any of these flags also preserves the binary.
+
+    % go test -run=XXX -bench=. -cpuprofile=c.p bytes
+    % go tool pprof -http=:8080 c.p
+
+
+PROFILING
+
+ 1. pprof: runtime package and external tooling to analyze the data
+ 
+    - CPU (sample PC/goroutine at 10ms intervals)
+    - Memory (heap allocations, not use; sample by default 1/1000 allocs)
+    - Blocking (how long a goroutine spent waiting on a shared resource)
+    - Mutex contention (ditto, but only mutexes, not channels)
+
+    We don't see who is USING memory, just where it's allocated (which is
+    mainly useful to reduce allocations)
+
+ 2. Generally you shouldn't enable more than one type of profile at a time
+    (otherwise you'll see the actions of the other profilers as overhead)
+
+ 3. convenience: import github.com/pkg/profile
+ 
+    and then defer profile.Start(. . .).Stop() in main()
+
+ 4. example program reading "Moby Dick" and counting words; much slower
+    than wc -w
+
+    we get a cpu.pprof file that we feed to "go tool pprof" which has its
+    own shell; use "top" to get the top-running functions
+    
+    use -http=:8080 option to get a browser window instead of text
+
+    we find all the time spent reading bytes in a syscall (because the
+    example program is reading one byte at a time!) and the thread
+    management (cond variables) to run the syscalls
+    
+    easiest fix: create a bufio.NewReader so that the file reads are
+    buffered (even then reading one byte from the buffer at a time)
+    
+    NOTE that Go file reads are unbuffered by default!
+    
+    when we do that, the program runs about 20ms and we don't get many
+    PC samples; but we do see time in mallocgc()
+
+ 5. switch from CPU to memory profiling of the modified example
+ 
+    we see lots of allocation in readbyte() -- actually memory equal
+    to the input file size
+    
+    that's because we're slicing the "buf" array and it fails the
+    escape test -- because the slice is passed to an interface
+    (io.Reader) and Go doesn't know its address won't be kept (!!)
+    
+    if we move "buf" out of the function to a package-level variable
+    it's no longer getting allocated on the heap each call
+    
+    BUT note that if we do this, we are no longer thread-safe
+    
+    so instead create a byteReader struct with a one-byte buffer and
+    an associated io.Reader, and give that a method to read the next
+    byte
+    
+    so then each goroutine needing to read creates its own byteReader
+    and is thread-safe
+
+ 6. we can use the -inuse_objects for pprof with memory profiling to see
+    what objects are still alive then the profile is dumped at the end
+
+    with care, we might use this to find memory leaks
+
+ 7. mutex profiling example, using b.RunParallel() to cause parallel
+    benchmarking (up to GOMAXPROCS running)
+
+ 8. StartTimer() and StopTimer() stop the world to count memory allocs
+    which in turn means forcing a GC cycle
+    
+    the time shows up in wall-clock time but not counted in profile time
+
+
+Seven ways to profile a Go program: 
+https://www.youtube.com/watch?v=2h_NFBFrciI
+https://talks.godoc.org/github.com/davecheney/presentations/seven.slide#1
+
+LUNCH
+
+
+COMPILER OPTIMIZATIONS
+
+ 1. Escape analysis allows a lot of allocations to go on the stack and not
+    the heap; stack allocs don't have to be garbage collected
+
+    use -gcflags=-m to get escape analysis info
+
+ 2. Every go function knows how much stack it needs; preamble handles stack
+    increase as needed (now copying)
+    
+    Very large allocations that would blow up the stack also are considered
+    to escape and will go to the heap even if not escaping otherwise
+
+ 3. Escape analysis is imperfect (but improving); cannot track interface
+    usage (stuff assigned to an interface or passed to an interface method)
+
+ 4. Note that fields of a struct may "escape" but that's really the copy
+    of the field that's being passed to the method / interface
+
+    type Point struct{ X, Y int }
+
+    func main() {
+        p := new(Point)
+        fmt.Println(p.X, p.Y) // we're copying these into interface{}
+    }
+
+ 5. if we make a slice using a variable for size, it will escape (compared
+    to using a const)
+    
+    func Sum() int {
+        const count = 100
+        numbers := make([]int, count)
+        . . .
+    }
+
+    // numbers escapes if count is a var not a const (!!)
+
+ 6. Inlining only works on functions not larger than some implementation-specific 
+    size; it is not necessary for them to be LEAF functions, but can't recurse
+    (as of Go 1.11; only leaf functions in earlier versions)
+    
+    once code is inlined, the compiler can do more optimization on the resulting
+    functions (including better dead-code stripping, or proofs of things, e.g.,
+    which variables are constants)
+    
+    https://dave.cheney.net/2014/09/28/using-build-to-switch-between-debug-and-release
+    https://dave.cheney.net/2013/10/12/how-to-use-conditional-compilation-with-the-go-build-tool
+
+ 7. You may need to know about inlining when getting error traceback stacks
+    (depth)
+
+ 8. FUNCDATA and PCDATA are macros for GC data; they're moved elsewhere during the
+    link stage
+
+ 9. Some Go structures prevent inlining, such as select{} (switch used to do that, but not
+    anymore)
+
+10. Compile flags
+
+    -gcflags=-l       no inline
+    -gcflags='-l -l'  aggressive inlines, maybe unsafe, biggers may be bigger
+    -gcflags='-l=3'   aggressive inlines, really unsafe
+    -gcflags='-l=4'   possibly enables mid-stack inlining in Go 1.12+
+
+11. Prove (proof) pass in SSA
+
+    allows the compiler to determine things for sure at compile time and thus identify
+    code that isn't needed (slice bounds check, possible branches) which might also
+    lead to dead code stripping
+    
+    -gcflags=-d=ssa/prove/debug=on will provide more info
+
+12. Go functions defined as assembly code (forwarded) cannot be inlined; instead, we
+    have intrinsic functions
+
+    NOTE that assembly functions are not portable; must be reimplemented for every
+    architecture [that's why we don't have an asm(...) macro in Go]
+    
+    Intrinsic functions have Go bodies and also assembly versions that can be used
+    as replacements (for the architectures where a body is provided)
+    
+    For example, math/bits OnesCount64()
+
+13. Bounds checks
+
+    - run-time bounds checks are not required for arrays (vs slices)
+    - run-time bounds checks may be simplified when the slice is declared
+      with a constant size in the same function
+
+
+EXECUTION TRACING
+
+ 1. tracing gives a lot more info that we can get with pprof
+
+ 2. MUST run the trace browser in Chrome, not Safari
+ 
+    w = make the view "wider"
+    s = make the view "slimmer"
+    
+    use left/right arrow keys to move around (or "a" / "d")
+
+ 3. sequential - it's clear we spent a lot of time running the pixel calcs
+    and then some more creating the PNG file (which includes compression)
+
+ 4. one-to-one has WAY too many goroutines (one per pixel), which results
+    in too little work compared to scheduling overhead, plus lots of false
+    sharing causing cache lines to bounce around
+
+    NOTE that pixes don't depend on their neighbors, so we can do this
+
+ 5. one-per-row actually reduces the time somewhat; we're down to 1024
+    goroutines each doing a reasonable amount of work
+    
+    possible false sharing still not addressed, although the matrix may have
+    the right shape not to cause a problem
+
+ 6. worker pool - unbuffered channel causes producer to wait on consumers
+
+    that causes goroutine thrashing not unlike the one-to-one mode; also,
+    we're still suffering from the cost to make a pixel is cheap compared
+    to the cost to get from the channel/schedule the goroutine + false
+    sharing
+
+    only works well if we buffer the whole image in the channel
+
+ 7. worker pool for doing rows (not pixels), buffering is still a good
+    idea
+    
+    time is about the same as just running one-per-row, without as many
+    goroutines
+
+    it doesn't matter here because we're CPU bound, not getting threads
+    tied up by syscalls; also, there's no point in having more workers
+    than CPU cores
+
+    NOTE that computing a row takes about the same time; there's no variance
+    among rows as there are in counting words in files, etc. (where the
+    file sizes may vary)
+    
+    NOTE that only the pixel calculation part is getting faster; the part
+    where we make the PNG file isn't -- Amdahl's law
+
+ 8. net/http/pprof is a package you import
+ 
+    WARNING - do not use the default server mux with pprof enabled;
+    create your own mux and have it point /debug/ to the default mux
+    which should only be bound to localhost
+
+    curl -s -o trace.out http://.../debug/pprof/trace?seconds=5
+
+    this will generate five seconds of trace info on demand and return it
+    so that you can run it separately
+
+
+GARBAGE COLLECTION
+
+ 1. There's only one way to influence the collector's behavior, the
+    environment var GOGC
+ 
+    normally the heap doubles before a collection is called
+
+ 2. Scavenger attempts to free memory back to the OS; runs periodically
+
+    Future - scavenger will become demand-driven (maybe in 1.13+) and so
+    not cost as much to programs which don't need it
+
+ 3. set env var GODEBUG=gctrace=1 to get tracing output from GC; easy
+    way to see if the program is allocating like crazy
+
+    lots of events and heap size growing rapidly even with GC = problem!
+
+ 4. Minimize allocations
+ 
+    - lots of allocations moving between []byte and string
+    
+      bytes pkg has many string operations that can be used, but you
+      can't print as string without making the conversion (?)
+
+    - you can do m[string(b)] to avoid a copy where the map needs a
+      string key; doesn't work if you make a var and then use it (?)
+
+    - 1.13+ also allows string(x) == string(y) to avoid copying the slice
+
+    - avoid string concatenations, particularly just to print them
+    
+      [append to a pre-allocated byte slice is probably the fastest]
+      [string concatenation is actually not too bad; much better than
+       fprintf/sprintf: sprintf is better than fprintf]
+      [strings.Builder is probably about as fast, but more structured]
+
+    - don't force allocations through the API, take a slice/buffer as a
+      parameter as with Read([]byte) (int, error); the caller can make
+      the buffer once
+
+    - preallocate data structure capacity if the size is known in advance
+
+    - use sync.Pool if applicable
+
+    - pack fields in structs correctly
+
+    - disk IO doesn't use polling (as with network sockets), so always use
+      a worker pool of goroutines (2-4 times GOMAXPROCS) to limit the
+      number of threads parked on syscalls
+
+    - watch out for IO read/write amplification since IO is even worse than
+      memory lookups
+
+      avoid doing IO in the context of a request if possible, so buffer info
+      in order to avoid a blocking read in a request handler
+
+    - avoid passing around giant []byte buffers; use io.Reader and io.Writer
+      so that reads/writes happen when needed
+
+      see also io.ReaderFrom / io.WriterTo instead of calling io.Copy to
+      avoid copies to a temporary buffer
+
+    - always set read/write deadlines on network operations
+
+      "Never start an IO operating without knowing the maximum time it will take"
+      (similar to the goroutine quote)
+
+    - defer comes with a cost, but may improve reliability (unlocking a mutex)
+      (defer will be a little cheaper in 1.13+)
+
+    - shorter code is smaller code in terms of the CPU cache
+
+    - recognize that there may be a limit to the need for speedup, i.e., do
+      you need web page loading faster than about 100 ms?
+
+
+FINAL THOUGHT
+
+    Don’t do it.
+    Do it, but don’t do it again.    [cache it]
+    Do it less.                      [buffer it]
+    Do it later.
+    Do it when they’re not looking.  [do it in the background]
+    Do it concurrently.
+    Do it cheaper.                   [most expensive choice]
+       -- Brendan Gregg
+
+    Readable means reliable.
+       -- Rob Pike
+
+    The fastest algorithm can frequently be replaced by one that 
+    is almost as fast and much easier to understand.
+       -- Douglas W. Jones
+
+    Don’t trade performance for reliability [or any other -ility].
+       -- Dave Cheney

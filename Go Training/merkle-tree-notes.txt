@@ -1,0 +1,81 @@
+merkle tree in go
+
+hash file same as before
+
+directory - walk the tree
+for each directory, we need a collector that all files feed into
+for each directory, we need a parent collector that the results feed up to
+the goroutine that walks the directory can collect files from its file children
+   and collect directory hashes from its directory children
+   we just need to know which is which
+
+so a file processing goroutine has one channel - file hash results to its parent directory
+and that parent will NOT disappear until all its children/grandchildren etc are done
+
+a directory processing goroutine has an input channel for its file children
+and an output channel for its combined results
+which is created by putting all the file children hash values into a slice
+and then hashing the slice of hashes to get a single value
+which it then passes up as the hash for the directory's path
+
+and we still want a collector for all files/directories to print the output
+of paths that match their hashes
+
+so each file & directory goroutine will have another output channel to the collector
+
+note that the file walk tree logic now needs to have a branch for the "." directory
+that we skipped before -- we don't want to make a child goroutine for it, but
+we do want to collect the results for the files at that level
+
+for each directory we know how many children it has by the time we're done creating
+all the goroutines for those children, so we know how many results to wait for
+
+the top-level directory processor doesn't need a channel up -- just over to the collector
+
+a directory processor needs to wait for its children to be done, which means it needs
+to read one result from each (created at its level -- i.e., direct subordinates) through
+the channel it gives them as "parent"
+
+when it's done that, it's ready to assemble & hash the results and pass them up, then die
+but it won't be finished until all its children/grandchildren/etc are done because
+the child directories won't report up until they're done, etc.
+
+so, if I'm a directory processor, I give each child my channel and the collector
+channel and increment a counter; when all the goroutines are started I can
+then wait until the # of reports come back
+
+how do we hash the slice of hashes that we've assembled?
+
+use the io.Writer interface of the MD5 object to write a slice
+of bytes -- we don't need to actually build up a slice but
+rather feed slices from the channel to the hash function one
+at a time
+
+so we're getting a pair struct {path string, hash []byte}
+(instead of a string ...)
+
+or we could just use the string encodings and feed them into the hash
+function and not worry about []byte arrays ... conver them on the
+fly ...
+
+=========
+
+// we can use this when processing a directory (p == path)
+// and just get the # of children
+
+    f, err := os.Open(dirname)
+
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    defer f.Close()
+
+    files, err := f.Readdir(-1)
+
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    children := len(files)
+

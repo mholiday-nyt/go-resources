@@ -1,0 +1,433 @@
+\documentclass[12pt,notitlepage]{article}
+\usepackage[letterpaper,margin=1in,textheight=9in]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[altbullet]{lucidabr}
+\usepackage{hyperref}
+\usepackage{sectsty}
+\usepackage{titlesec}
+\usepackage{enumitem}
+
+% we need this because we're going to change paragraph spacing
+\titlespacing\section{0pt}{12pt plus 4pt minus 2pt}{0pt plus 2pt minus 2pt}
+\titlespacing\subsection{0pt}{12pt plus 4pt minus 2pt}{0pt plus 2pt minus 2pt}
+\titlespacing\subsubsection{0pt}{6pt plus 4pt minus 2pt}{-12pt plus 2pt minus 2pt}
+
+\usepackage{setspace}
+% paragraphs are not indented, but separated by a blank line
+\setlength{\parskip}{0.6\baselineskip}%
+\setlength{\parindent}{0pt}%
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=Cardinal,
+    filecolor=magenta,      
+    urlcolor=blue,
+}
+
+\usepackage{titling}
+\setlength{\droptitle}{-0.5in}
+\renewcommand{\maketitlehooka}{\normalfont\bfseries}
+\renewcommand{\maketitlehookb}{\normalfont\vspace{-0.3in}}
+\renewcommand{\maketitlehookc}{\vspace{-0.3in}}
+
+\begin{document}
+\title{Links to Go Language Resources}
+\author{Items in {\color{red} red} are particularly interesting}
+\date{30 August 2019}
+\maketitle
+\thispagestyle{empty}
+
+\section{Books}
+
+{\em The Go Programming Language,} Donovan \& Kernighan, Addison-Wesley, 2015,\\% 
+\href{https://www.amazon.com/Programming-Language-Addison-Wesley-Professional-Computing/dp/0134190440}{9780134190440}
+(also look through the \href{https://golang.org/doc/devel/release.html}{Go release notes} for changes)
+
+{\em Get Programming with Go,} Youngman \& Peppe, Manning, 2018, 
+\href{https://www.amazon.com/Get-Programming-Go-Nathan-Youngman/dp/1617293091}{9781617293092}
+
+{\em Head First Go,} McGavren, O'Reilly, 2019, 
+\href{https://www.amazon.com/Head-First-Go-Jay-McGavren/dp/1491969555}{9781491969557}
+
+{\em Introducing Go,} Doxsey, O'Reilly, 2016, 
+\href{https://www.amazon.com/Introducing-Go-Reliable-Scalable-Programs/dp/1491941952}{9781491941959}
+
+{\em Teach Yourself Go in 24 Hours,} Ornbo, Sams, 2017, 
+\href{https://www.amazon.com/Sams-Teach-Yourself-Hours-Programming/dp/0672338033}{9780672338038}
+
+{\em Go in Action,} Kennedy et al, Manning, 2015, 
+\href{https://www.amazon.com/Go-Action-William-Kennedy/dp/1617291781}{9781617291784}
+
+{\em Go Web Programming,} Chang, Manning, 2016, 
+\href{https://www.amazon.com/Web-Programming-Sau-Sheong-Chang/dp/1617292567}{9781617292569}
+
+{\em Concurrency in Go,} Cox-Buday, O'Reilly, 2017, 
+\href{https://www.amazon.com/Programming-Language-Addison-Wesley-Professional-Computing/dp/0134190440}{9781491941195}
+\\(advanced material)
+
+{\em Writing an Interpreter in Go,} Ball, 2018, 
+\href{https://www.amazon.com/Writing-Interpreter-Go-Thorsten-Ball/dp/3982016118}{9783982016115}
+
+{\em Writing a Compiler in Go,} Ball, 2018, 
+\href{https://www.amazon.com/Writing-Compiler-Go-Thorsten-Ball/dp/398201610X}{9783982016108}
+
+{\em Let's Go! Learn to Build Professional Web Applications With Golang}, 2019, 
+\href{https://lets-go.alexedwards.net}{(gumroad)}
+
+{\em 12 Factor Applications with Docker and Go,} Petric, 2018, \href{https://leanpub.com/12fa-docker-golang}{(leanpup)}
+
+{\em API Foundations in Go,} Petric, 2019, \href{https://leanpub.com/api-foundations}{(leanpub)}
+
+{\em Production Go,} Schaaf \& Smith, (in development), \href{https://leanpub.com/productiongo}{(leanpub)}
+
+\section{Twitter}
+
+\href{https://twitter.com/search?q=%40golang}{@golang}
+
+\href{https://twitter.com/golangweekly}{@golangweekly}
+
+\href{https://twitter.com/GopherCon}{@gophercon}
+
+\href{https://twitter.com/goinggodotnet}{@goinggodotnet} (Bill Kennedy)
+
+\href{https://twitter.com/davecheney}{@davecheney} (Dave Cheney)
+
+\href{https://twitter.com/golangweekly}{@golangweekly}
+
+
+\section{Websites}
+
+\href{https://golang.org}{\color{red} Go downloads, docs, blog, FAQ}
+
+\href{https://play.golang.org/}{Go playground}
+
+\href{https://dave.cheney.net/2017/03/20/why-go}{Why Go?}
+
+\href{https://yourbasic.org/golang/advantages-over-java-python}{Why Go? --- Key advantages you may have overlooked}
+
+\href{https://dave.cheney.net/category/golang}{\color{red} Dave Cheney's blog}
+
+\href{https://eli.thegreenplace.net/tag/go}{Eli Bendersky's blog}
+
+\href{https://blog.gopheracademy.com}{GopherAcademy blog}
+
+\href{https://www.ardanlabs.com/blog/}{\color{red} Ardan Labs blog}
+
+\href{https://www.alexedwards.net/blog/}{Alex Edwards' blog}
+
+\href{https://medium.com/@lizrice}{Some Liz Rice articles}
+
+\href{https://golangweekly.com}{Golang Weekly (sign up for email)}
+
+\href{http://www.go-gazette.com}{The Go Gazette (ditto)}
+
+\href{https://github.com/golang/go/wiki/Blogs}{Blog list}
+
+\href{https://github.com/avelino/awesome-go}{A curated list of awesome Go frameworks, libraries and software}
+
+
+\section{GopherCon}
+
+\begin{description}[style=unboxed,leftmargin=1.2cm]
+    \item[2019] \href{https://www.youtube.com/watch?v=h0s8CWpIKdg}{Death by 3,000 Timers}, 
+                \href{https://www.youtube.com/watch?v=de9cVAx6REA}{Dynamically Instrumenting Go Programs} and
+                \href{https://github.com/gophercon/2019-talks}{more}
+    \item[2018] \href{https://tqdev.com/2018-gophercon-2018-videos-online}{Videos} and
+                    \href{https://about.sourcegraph.com/go/}{Summaries} as well as 
+                    \href{https://www.youtube.com/watch?v=YHRO5WQGh0k}{\color{red} The scheduler saga} and
+                    \href{https://www.youtube.com/watch?v=M0HER1G5BRw}{Allocator wrestling}
+    \item[2017] \href{https://github.com/gophercon/2017-talks}{2017 talks} as well as 
+                    \href{https://www.youtube.com/watch?v=KBZlN0izeiY}{\color{red} Understanding channels} and
+                    \href{https://www.youtube.com/watch?v=PXdao4VxQMQ}{Distributed gomputing}
+    \item[2016] \href{https://github.com/gophercon/2016-talks}{2016 talks} and 
+                     \href{https://www.youtube.com/watch?v=KINIAgRpkDA&list=PL2ntRZ1ySWBdliXelGAItjzTMxy2WQh0P}{Go assembler}
+    \item[2015] \href{https://github.com/gophercon/2015-talks}{2015 talks}
+    \item[2014] \href{https://github.com/gophercon/2014-talks}{2014 talks}
+\end{description}
+
+
+\section{Articles}
+
+\href{https://talks.golang.org/2012/splash.article}{Go at Google: Language Design in the Service of Software Engineering}
+
+\href{https://dave.cheney.net/resources-for-new-go-programmers}{Resources for new Go programmers}
+
+\href{https://users.ece.utexas.edu/~adnan/pike.html}{Rob Pike's 5 rules of programming}
+
+\href{https://commandcenter.blogspot.com/2012/06/less-is-exponentially-more.html}{Less is exponentially more}
+
+Dave Cheney's \href{https://dave.cheney.net/paste/clear-is-better-than-clever.pdf}{Clear is better than clever}
+and \href{https://dave.cheney.net/practical-go/presentations/qcon-china.html}{\color{red} Practical Go} [this is a must-read!]
+and \href{https://dave.cheney.net/high-performance-go-workshop/gopherchina-2019.html}{High Performance Go Workshop}
+
+\href{https://medium.com/@teivah/the-top-10-most-common-mistakes-ive-seen-in-go-projects-4b79d4f6cd65}{10 most-common mistakes}
+
+\href{https://blog.golang.org/profiling-go-programs}{Profiling Go programs}
+
+\href{https://www.ardanlabs.com/blog/2018/12/garbage-collection-in-go-part1-semantics.html}%
+{Garbage Collection In Go : Part I} and 
+\href{https://www.ardanlabs.com/blog/2019/05/garbage-collection-in-go-part2-gctraces.html}{Part II} (part III to follow)
+
+\href{https://github.com/golang/go/wiki/CodeReviewComments}{Google Go code review comments}
+
+\href{https://hackernoon.com/go-is-on-a-trajectory-to-become-the-next-enterprise-programming-language-3b75d70544e}%
+{Go is on a Trajectory to Become the Next Enterprise Programming Language}
+
+\href{https://eli.thegreenplace.net/2018/go-hits-the-concurrency-nail-right-on-the-head/}%
+{Go hits the concurrency nail right on the head}
+
+\href{https://eli.thegreenplace.net/2019/go-json-cookbook/}{Go JSON Cookbook}
+
+\href{http://devs.cloudimmunity.com/gotchas-and-common-mistakes-in-go-golang/index.html}{\color{red} Fifty Shades of Go}
+
+\href{https://yourbasic.org/golang/go-java-tutorial/}{Java to Go in-depth tutorial}
+
+\href{https://peter.bourgon.org/go-in-production/}{Go: Best Practices for Production Environments}
+
+\href{https://blog.rapid7.com/2016/08/04/build-a-simple-cli-tool-with-golang/}{Building a Simple CLI Tool with Go}
+
+\href{https://github.com/dgryski/go-perfbook/blob/master/performance.md}{\color{red} Writing and Optimizing Go code}
+
+\href{https://github.com/bradfitz/talk-yapc-asia-2015}{Profiling \& Optimizing in Go}
+
+\href{https://github.com/golang-standards/project-layout}{Standard Go project layout}
+
+\href{https://segment.com/blog/allocation-efficiency-in-high-performance-go-services/}%
+{Allocation efficiency in high-performance Go services}
+
+\href{https://hackernoon.com/how-a-go-program-compiles-down-to-machine-code-e4532dc8b8ca}%
+{How a Go Program Compiles down to Machine Code}
+
+\href{https://www.oreilly.com/ideas/how-to-ship-production-grade-go}{How to ship production-grade Go}
+
+\href{https://medium.freecodecamp.org/how-to-write-bulletproof-code-in-go-a-workflow-for-servers-that-cant-fail-10a14a765f22}%
+{How to write bulletproof code in Go: a workflow for servers that can’t fail}
+
+\href{https://medium.com/@lizrice/a-debugger-from-scratch-part-1-7f55417bc85f}{A debugger from scratch --- part 1} 
+and \href{https://medium.com/@lizrice/a-debugger-from-scratch-part-2-9954006850bd}{part 2}
+
+\href{https://blog.filippo.io/shrink-your-go-binaries-with-this-one-weird-trick/}%
+{Shrink your Go binaries with this one weird trick}
+
+\href{https://blog.hasura.io/the-ultimate-guide-to-writing-dockerfiles-for-go-web-apps-336efad7012c/}%
+{The Ultimate Guide to Writing Dockerfiles for Go Web-apps}
+
+\href{https://medium.com/@dgryski/idiomatic-go-resources-966535376dba}{\color{red}Idiomatic Go Resources}
+
+\href{https://medium.com/@dgryski/the-ideas-that-shaped-go-21850a74295f}{The Ideas That Shaped Go}
+
+\href{https://www.sohamkamani.com/blog/golang/arrays-vs-slices/}{A Comprehensive Guide of Arrays and Slices in Golang}
+
+\href{https://zupzup.org/go-missing-read-handler/}{The Tale of the Missing Read Handler in Go}
+
+\href{https://medium.com/@questhenkart/s3-image-uploads-via-aws-sdk-with-golang-63422857c548}{S3 Image Uploads via AWS-SDK with Golang}
+
+\href{https://serifandsemaphore.io/build-a-serverless-api-in-seconds-with-go-c504398d86f6}{Build a Serverless API in Seconds with Go}
+
+\href{https://serifandsemaphore.io/a-cognito-protected-serverless-api-with-golang-in-minutes-a054c9f50cf3}{A Cognito Protected Serverless API with Golang in Minutes}
+
+\href{https://arslan.io/2019/08/02/why-you-should-use-a-go-module-proxy/}{Why you should use a Go module proxy}
+
+\section{Videos}
+Be sure to search for stuff from Rob Pike, Robert Griesemer, Russ Cox, Francesc Campoy, Liz Rice, and Kavya Joshi
+as well as other conferences such as Golang UK, dotGo, GothamGo, etc.
+
+\href{https://www.youtube.com/watch?v=PAAkCSZUG1c}{Go proverbs}
+
+\href{https://www.youtube.com/watch?v=ynoY2xz-F8s}{\color{red} Understanding nil}
+
+\href{https://www.youtube.com/watch?v=8D3Vmm1BGoY}{Twelve Go best practices}
+
+\href{https://www.youtube.com/watch?v=YEKjSzIwAdA}{\color{red} Concurrency patterns in Go}
+
+\href{https://www.youtube.com/watch?v=cN_DpYBzKso}{Concurrency is not parallelism}
+
+\href{https://www.youtube.com/watch?v=yKQOunhhf4A}{Concurrency made easy}
+
+\href{https://www.youtube.com/watch?v=5zXAHh5tJqQ}{\color{red} Rethinking classical concurrency patterns}
+
+\href{https://www.youtube.com/watch?v=WkzGQ-Sm_50}{Clear is better than clever}
+
+\href{https://www.youtube.com/watch?v=zzAdEt3xZ1M}{SOLID Go design}
+
+\href{https://www.youtube.com/watch?v=YF1qSfkDGAQ}{Production-ready Go}
+
+\href{https://www.youtube.com/watch?v=40d26ZGfhR8}{The Robustness of Go}
+
+\href{https://www.youtube.com/watch?v=OF3TM-b890E}{A Go Programmer's Guide to Secure Connections (LondonGophers '18)}
+and \href{https://www.youtube.com/watch?v=kxKLYDLzuHA}{(GopherCon '18)}
+
+\href{https://www.youtube.com/watch?v=U7glyWYj4qg}{Going Serverless (GopherCon '18)}
+
+\href{https://www.youtube.com/watch?v=bMujSVMarqY}{Go's realtime GC}
+
+\href{https://www.youtube.com/watch?v=rFejpH_tAHM&t=453s}{Simplicity is complicated}
+
+\href{https://www.youtube.com/watch?v=_TsSmSu57Zo}{\color{red} Containers from scratch}
+
+\href{https://youtu.be/ZrpkrMKYvqQ}{\color{red} Debuggers from scratch}
+
+\href{https://www.youtube.com/watch?v=0ReKdcpNyQg}{The evolution of Go}
+
+\href{https://www.youtube.com/watch?v=vLxX3yZmw5Q}{Prototype your design!}
+
+\href{https://www.youtube.com/watch?v=gHCtEjzZ-rY}{A look at the criticism of Go}
+
+\href{https://www.youtube.com/watch?v=5IKcPMJXkKs}{Closures are the generics of Go}
+
+\href{https://medium.com/@matryer/video-writing-beautiful-packages-in-go-fab1138608ee}{Writing beautiful packages in Go}
+
+\href{https://www.youtube.com/watch?v=cF1zJYkBW4A}{Moving from C to Go in the toolchain}
+
+\href{https://www.youtube.com/watch?v=pN_lm6QqHcw}{Constant time}
+
+\href{https://www.youtube.com/watch?v=uyifh6F_7WM}{Go tune your memory}
+
+\href{https://www.youtube.com/watch?v=jiXnzkAzy30}{Optimizing Go code without a blindfold}
+
+\href{https://www.youtube.com/watch?v=fcyHqDwGchI}{Go as a scripting language in Linux}
+
+\href{https://www.dotconferences.com/2019/03/valentin-deleplace-semaphores}{\color{red} Channels as semaphores}
+
+\href{https://www.youtube.com/watch?v=zDCKZn4-dck}{Behavior of channels}
+
+\href{https://www.dotconferences.com/2019/03/roberto-clapis-the-monsters-inside-the-sync-locker}%
+{The monsters inside sync.Locker}
+
+\href{https://dave.cheney.net/paste/gopherchina-2019-testing-talk.pdf}{Testing: How, What, and Why}
+
+\href{https://www.youtube.com/watch?v=ScE9TnoWltA}{The Robustness of Go}
+
+\href{https://www.youtube.com/watch?v=5erqWdlhQLA}{``go test -race'' Under the Hood}
+
+\href{https://www.youtube.com/watch?v=cmkKxNN7cs4}{Writing Beautiful Packages in Go}
+
+\href{https://www.youtube.com/watch?v=KqTySYYhPUE}{Go Module Proxy: Life of a Query (Gophercon '19)}
+
+\href{https://www.youtube.com/watch?v=WDbbIS7m9bU}{The Athens Project (Gophercon '19)}
+
+\href{https://www.youtube.com/watch?v=VwPQKS9Njv0}{PKI for Gophers (Gophercon '19)}
+
+\href{https://www.youtube.com/watch?v=nok0aYiGiYA}{Two Go Programs, Three Different Profiling Techniques (Gophercon '19)}
+
+\href{https://www.youtube.com/watch?v=rWBSMsLG8po}{How I Write HTTP Web Services after Eight Years (Gophercon '19)}
+
+\href{https://www.youtube.com/watch?v=kNHo788oO5Y}{On the Path to Go 2 (Gophercon '19)}
+
+\href{https://www.youtube.com/watch?v=WzgLqE-3IhY}{Generics in Go (Gophercon '19)}
+
+
+\section{Microservices \& Cloud}
+
+\href{https://www.youtube.com/watch?v=Q5POuMHxW-0}{Introduction to Docker}
+
+\href{https://www.youtube.com/watch?v=1xo-0gCVhTU}{Introduction to Microservices, Docker, and Kubernetes}
+
+\href{https://www.youtube.com/watch?v=RoXT_Rkg8LA}{Intro to gRPC: A Modern Toolkit for Microservice Communication}
+
+\href{https://www.youtube.com/watch?v=Z_yD7YPL2oE}{Best Practices for (Go) gRPC Services}
+
+\href{https://www.youtube.com/watch?v=X0tjziAQfNQ}{10 tips for failing badly at microservices}
+
+\href{https://www.youtube.com/watch?v=gauOI0O9fRM}{Microservices in the Cloud with Kubernetes and Istio (Google I/O '18)}
+
+\href{https://www.youtube.com/watch?v=N2OG1w6bGFo}{Google Cloud Platform on a shoestring budget (Google I/O '18)}
+
+\href{https://www.youtube.com/watch?v=trJaoEtBh6w}{Google Cloud Platform 101 (Google I/O '18)} and
+\href{https://www.youtube.com/watch?v=vmOMataJZWw}{(Cloud Next '19)}
+
+\href{https://www.youtube.com/watch?v=0cgTHQFXYPQ}{Incrementally Adopting Istio (Cloud Next '19)}
+
+\href{https://www.youtube.com/watch?v=7cINRP0BFY8}{Istio in Production: Traffic Routing (Cloud Next '19)}
+
+\href{https://www.youtube.com/watch?v=CmZWau04ZS4}{Canary Deployments With Istio and Kubernetes Using Spinnaker (Cloud Next '19)}
+
+\href{https://www.youtube.com/watch?v=IblDMVwSSk4}{APIs, Microservices, and the Service Mesh (Cloud Next '19)}
+
+\href{https://www.youtube.com/watch?v=MmsoIcYrXJU}{AWS Tutorial For Beginners}
+
+Cloud Yeti Terraform tutorials: \href{https://www.youtube.com/watch?v=RA1mNClGYJ4}{Provision EC2 on AWS with Terraform},
+\href{https://www.youtube.com/watch?v=rUPSyAG4C1g}{Terraform Remote State on Amazon S3},
+\href{https://www.youtube.com/watch?v=YCC68iW-lKA}{Multiple terraform configuration (.tf ) files}
+
+Another Terraform tutorial: \href{https://www.youtube.com/watch?v=IxA1IPypzHs}{1: AWS demo: create VPC \& subnet},
+\href{https://www.youtube.com/watch?v=9ck6LaBy-W8}{2: Terraform variables, data sources, loops},
+\href{https://www.youtube.com/watch?v=5-EvptsWl8M}{3: Terraform map and lookup function}
+
+\section{Web Programming}
+
+\href{https://www.youtube.com/watch?v=2PPSXonhIck}{Authentication on the Web}
+
+\href{https://www.youtube.com/watch?v=996OiexHze0}{OAuth 2.0 and OpenID Connect (in plain English)}
+
+\href{https://www.sohamkamani.com/blog/golang/2019-01-01-jwt-authentication/}{Implementing JWT based authentication in Golang}
+
+\href{https://golang.org/doc/articles/wiki/}{\color{red} Writing Web Applications}
+
+\href{https://meshstudio.io/blog/2017-11-06-serving-html-with-golang/}{Serving HTML with Go}
+
+\href{https://medium.com/statuscode/how-i-write-go-http-services-after-seven-years-37c208122831}{Writing HTTP servers}
+
+\href{https://juliensalinas.com/en/develop-deploy-whole-website-golang/}{Developing and deploying a whole website in Go}
+
+\href{https://juliensalinas.com/en/golang-API-backend-vuejs-SPA-frontend-docker-modern-application/}%
+{Building a modern application with a Golang API backend + a Vue.js SPA frontend}
+
+\href{https://www.sohamkamani.com/blog/2017/09/13/how-to-build-a-web-application-in-golang/}{Build a web application in Go}
+
+\href{https://www.sohamkamani.com/blog/golang/2018-06-17-golang-using-context-cancellation/}%
+{Using context cancellation in Go}
+
+\href{https://blog.kowalczyk.info/article/uvw2/thoughts-on-go-after-writing-3-websites.html}%
+{Thoughts on Go after writing 3 websites }
+
+\href{https://medium.com/@nate510/don-t-use-go-s-default-http-client-4804cb19f779}%
+{Don’t use Go’s default HTTP client (in production)}
+
+\href{https://www.freecodecamp.org/news/deep-dive-into-graphql-with-golang-d3e02a429ac3/}{GraphQL with Golang}
+
+\href{https://www.linkedin.com/pulse/full-stack-golang-tutorial-postgresql-andrey-okhotnikov/}%
+{Full Stack GoLang Tutorial with PostgreSQL}
+
+\href{http://www.gorillatoolkit.org}{Gorilla web toolkit} (software)
+
+\href{https://github.com/justinas/nosurf}{Nosurf} (software)
+
+
+\section{Database}
+
+\href{http://go-database-sql.org/}{Go database/sql tutorial}
+
+\href{http://mindbowser.com/golang-go-database-sql/}{Go Database/SQL}
+
+\href{https://eli.thegreenplace.net/2019/design-patterns-in-gos-databasesql-package/}%
+{Design patterns in Go's database/sql package}
+
+\href{https://eli.thegreenplace.net/2019/to-orm-or-not-to-orm/}{\color{red} To ORM or not to ORM}
+
+\href{https://www.alexedwards.net/blog/organising-database-access}{Practical Persistence in Go}
+
+\href{https://www.youtube.com/watch?v=Nh3CJYZZSdc}{SQL Database Programming in Golang} (video)
+
+\href{http://jmoiron.github.io/sqlx/}{SQLX} (software)
+
+
+\section{Mechanical Sympathy}
+
+\href{https://mechanical-sympathy.blogspot.com/}{\color{red} Mechanical Sympathy}
+
+\href{https://www.youtube.com/watch?v=MC1EKLQ2Wmg}{Mythbusting Modern Hardware to Gain Mechanical Sympathy} (video)
+
+\href{https://preshing.com/20120930/weak-vs-strong-memory-models/}{Weak vs Strong Memory Models}
+
+\href{https://preshing.com/20120515/memory-reordering-caught-in-the-act/}{Memory Reordering Caught in the Act}
+
+\href{https://mirrors.edge.kernel.org/pub/linux/kernel/people/paulmck/perfbook/perfbook.2011.01.02a.pdf}%
+{Is Parallel Programming Hard, And, If So, What Can You Do About It?}
+
+\href{https://www.cl.cam.ac.uk/~pes20/ppc-supplemental/test7.pdf}%
+{A Tutorial Introduction to the ARM and POWER Relaxed Memory Models}
+
+\href{https://www.cs.utexas.edu/~simon/378/resources/ARMv7-AR_TRM.pdf}{ARM Architecture Reference Manual}
+\end{document}

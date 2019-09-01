@@ -1,0 +1,643 @@
+GOPHERCON 2019 - FRIDAY
+
+
+Aaron Schlesinger - The Athens Project
+
+another module mirror technology, independent of Google
+presumably this can be copied and run privately, as opposed to a single public instance
+
+Athens re-uses the module download API:
+
+GET github.com/my/module/@v/list
+GET github.com/my/module/@latest
+GET github.com/my/module/@v/v1.0.0.mod
+GET github.com/my/module/@v/v1.0.0.info
+GET github.com/my/module/@v/v1.0.0.zip     ## actual source
+
+this API is independent of git/Github etc
+Athens serves this API, similar to proxy.golang.org
+the API server can then talk to Github, GitLab, BitBucket, etc.
+
+having a module proxy separates the code dependency from the git tree
+and separates us from changes/deletes in the git repo
+so we have stable builds -- dependencies don't change or go away
+
+there is now a middle man between the package maintainer and users;
+but unlike Maven, etc., it's not a registry where maintainers have
+to push info and/or the proxy must remove stuff
+[good legal question; what license limitations on stuff in the mirror?]
+
+since you can run your own Athens server, you control your dependency
+storage, not a third party
+
+
+====================================================================
+
+Ian Lance Taylor - Generics in Go
+
+why? w/out generics, even with interfaces, we duplicate lots of code
+and with interfaces, we (today) use lots of reflection from interface{}
+we don't want to lose static typing
+
+we could use a code generator; several have been built
+lots of examples shown of possible functions we'd like to have generic
+[read from a channel with a timeout, reverse a slice, etc.]
+[generic data structures other than slice & map, e.g. list, tree]
+
+every language change has a cost; generics will add complexity to Go
+Go has independent, orthogonal features for simplicity, combinations
+
+guidelines:
+- add as few new concepts to the language (syntax, keywords)
+- complexity of generics should fall on the provider of a generic pkg
+- errors should be easy to understand/fix
+- separate concerns of maintainer, user of generic code
+- keep short build times, fast execution (reduce cost as possible)
+- MUST preserve the simplicity & clarity of Go
+
+a proposal was made in 2018, shown at Gopercon as a Go 2.0 possibility
+compiler should (mostly) be able to deduce type arguments at call sites
+we're adding a metatype in order to define the generic type
+that led to including concepts in Go generics
+simplified contracts for 2019; new draft coming out later today 7/26
+
+// here we define possible values of type T
+contract Sequence(T) {
+    T string, []byte
+}
+
+// here we require a particular method that must exist
+contract Stringer(T) {
+    T String() string
+}
+
+contract G(Node, Edge) {
+    Node Edges() []Edge
+    Edge Nodes() (from Node, to Node) // what does this mean?
+}
+
+func Min (type T Ordered) (a, b T) T {
+    if a < b {
+        return a
+    }
+    return b
+}
+
+// set of types, not a set of methods (harder to define)
+contract Ordered(T) {
+    T int, int8, int16, int32, ...
+    // which includes named types based on these types
+}
+
+?? how will this impact the standard library, and when ??
+
+see CL 187317; incomplete
+https://golang.org/cl/187317
+
+
+====================================================================
+
+Jessica Lucci - You can't Go your own way (standardization at Github)
+
+- writing some type of scraping job
+- selecting data schema, driver for DB
+- build API client, ...
+
+turns out there was no standard for DB schema management, driver, client
+
+standardizing:
+- libraries & packages to be used
+- project structure
+- development lifecycle
+
+how to evaluate potential new packages?
+what process to upgrade commonly-used packages?
+need a centralized repo for packages
+
+project structure - really directory layout, code & non-code
+"where do I find the thing"
+
+lifecycle - how does this thing get into production?
+- git workflow, merge & master
+- how to run apps locally
+- CI/CD pipeline
+- logs - format & where to put them
+
+why do this?
+- security & trust
+- discovery & de-dup
+- consistency -> collaboration
+
+an audit of libraries might have found security bug sooner
+and automated updates would get the fixed version into prod sooner
+
+if you find code to re-use, are those internal projects "ready"?
+
+created "language working groups" in Github
+- CI/CD definitions for each language
+- scorecards
+- module vetting criteria
+- process to upgrade language versions and dependencies
+- more processes ... ooof
+
+also:
+- build a system to push module updates into projects
+  [suggests not using a mono repo!]
+- hired on some framework engineers to support this stuff
+  [not enough "volunteer" bandwidth]
+- developed some OKRs for all this work
+
+needed to build a proxy that would serve both private and public modules
+(still in work, apparently not a simple process)
+
+hope to roll out some of these ideas to devops; standardizing K8
+config files, network layout, etc.
+
+====================================================================
+
+Ron Evans - Small is Going big (TinyGo on micro-controllers)
+
+tinygo.org
+
+lots of language choices for embedded development
+regular Go has some issues for embedded - GC, library sizes
+
+hello-world.go in Go 1.12       1.1Mb binary
+                  tinyGo 0.7     12Kb
+
+tinyGo is missing some Go stuff; that includes std lib and language;
+missing goroutines, channels ...
+
+requires LLVM; Go compiler SSA converted to fit LLVM, compile with CLANG
+
+tinyGo does work on very small micro-controllers
+
+digiSpark 8-bit 16MHz CPU with 8K, plugs into a USB port to flash it
+running a simple program that flashes the LED, takes only ~ 300 bytes
+
+adaFruit, Cortex M0, 32-bit 48 MHz
+board wired to a Gopher plushie with LED and button
+this program takes a button to turn LED on or off, 16k program
+
+arduino boards for IoT
+tinyGo still needs to get the net package fully ready to work with
+the available interfaces on these boards
+
+but there is an MQTT package for tinyGo to hook up button + LED and
+enough TCP/IP to make it work
+
+also had a demo of the flying drone with UDP networking and face
+detection, improved from last year
+
+also had a demo of tinyGo compiled to WASM using a web site,
+putting that onto a RISC-V board
+
+
+====================================================================
+
+Chris Hines - Death by 3K timers - streaming VoD on cable TV
+[also developed go-kit https://github.com/ChrisHines, made contributions to Go]
+
+VoD delivery, can stream if you own your own network ;-)
+tiny buffers in the set-top boxes
+which requires accurate and stable delivery rate via UDP
+must scale; peak usage 1 million VOD sessions across the network
+
+pump gets VOD data from the video cache in the same server box
+CDN for the cache to get video
+1 mB video chunks, pump sends them out over the QAM cable net
+runs on bare metal; 56-core CPU
+16 Gbps peak load out of a single server, stream 4.5 Mbps
+3500 concurrent streams from a server, MTU 1500, 
+MPEG-TS is 188-byte packets, grouped into 1316 byte packets (7)
+427 UDP packets/sec for each stream, 2.34 ms inter-packet time
+63 streams, 27k UDP packets per core at 37 microsec rates
+
+first version, 1 goroutine & 1 rate limiter per stream with a
+time.Ticker for periodic wake-ups
+
+with Go 1.9, that didn't work :=)
+5 copies of pump on a server, that did work
+
+but what was the real issue?
+with Go 1.11, nice additions to net package
+but things didn't work any more :(
+new Go version cause more CPU usage, at risk of failure
+
+what does pprof say?
+runtime.findrunnable took about 2x the CPU in the new Go
+
+why did this happen? what had changed since Go 1.9?
+looked at the commit history in runtime
+found "improve timers scalability on multi-CPU systems"
+
+why more CPU here?
+looked into the details of the scheduler
+
+M = thread (machine, but not a CPU)
+G = goroutine
+P = processor (list of runnable goroutines)
+
+when main() starts, all the Ps have been created along with one
+M and on G (for main)
+
+each P has a run queue (runq) and runnext slot for the next runnable G
+
+when a goroutine is created and put into the runnext slot, P wakes
+up another P which creates an M which then looks into its runnext
+and runq - finds nothing - then goes "work stealing" by looking
+into all runq structures first and then looks into a runnext if
+runq is empty for all Ps
+
+but before it starts that G it wakes up another P which creates an M
+to look for work - then that idle M goes to sleep
+
+if there are more goroutines, they end up in the first P's runq and
+the next P started up takes half of them, but still calls wakep()
+to get another P going, which in turn steals more work, possibly
+stealing work from the second P/M pair which just stole work ...
+
+lots of parallelism fast in this method
+
+timerq is another structure (only one of them in Go 1.9) where Gs
+which need to wait on a timer go; Go starts a special goroutine
+TP (timerproc) and puts it in some runq/runnext to wake up the
+goroutine on the timerq
+
+that means the M running the TP goes to sleep waiting for an OS
+callback, and another M is created for the P it was running on,
+which then goes looking for work
+
+when the TP on the waiting OS thread wakes up, it looks for an idle
+P to take that thread, and then grab the G in the timerq and put it
+into a runnext, and then the TP goes to sleep, allowing an idle
+thread to start up and pick up the G whose timer has woken up
+
+now, in Go 1.11 the "improvement" sharded the timerq among GOMAXPROCS
+copies, so there's less lock contention for it, and goroutines go to
+sleep faster, but maybe there's more work stealing
+
+the schedule is good at finding work and keeping CPUs busy, but
+spends a lot of CPUs trying to steal work when there isn't much
+
+waking up from a timer involves multiple context switches among
+OS threads
+
+having 5 pumps on a server in Go 1.9 meant more timerq copies but
+all of them had the same GOMAXPROCS and were competing for cores
+
+in Go 1.11 that meant lots of work stealing; reducing GOMAXPROCS
+to 12 (1/5th) reduced CPU usage below what it was in Go 1.9
+
+and opened an issue in Go
+
+what about running only one copy of pump per server? nope
+
+lots of delay: 10 usec to send packet and 2 ms of sleeps which
+means lots of context switching
+
+what if the work could be grouped so there are fewer sleeps and
+wakeups and less work stealing
+
+first idea: more streams per goroutine (more than one)
+crazy idea: round off wakeup times
+
+stream multiplexing: one packet scheduler, stream requests a time
+range to send a packet, so the scheduler can send several packets
+(for different streams) all at once
+
+rouding off - lots of goroutines wake up all at once and go to
+work (very easy to do)
+
+looks like delta timers! run lots of work for each OS/Go timer
+
+crazy idea avoided hockey stick behavior as streams/CPU increases
+
+both ideas made the work linear, crazy idea not quite as good as
+the fancier packet scheduling with stream multiplexing
+
+multiplexing could also handle cases where streams weren't the same 
+rate; but code got complicated because of their own scheduler
+
+packet delivery code must not block, because now it would block
+multiple streams per goroutine; that also means more-complex code
+(non-blocking IO)
+
+integration: input code was scheduler-hostile, more batching required
+as opposed to send one packet at a time into channels
+
+some iterations to remove IO blocking code
+
+CPU use reduced to 40% at full capacity, much improved compared to
+any of the old code versions
+
+Go team is busy rewriting timers for Go 1.14 to get rid of the problems
+introduced by Go 1.11
+
+Go 1.14 moves timerq directly into the P and get rid of the timerproc
+and lets Ps do timer stealing; lots of context switching eliminated
+when a P wakes up
+
+99% improvement in some benchmarks; the Go 1.14 runtime under the OLD
+pump code is about as good as the custom scheduler they built
+
+the multiplexer is about 2-3% better at the right hand side of the
+graph
+
+BUT keeping the multiplexer can also use ipv4.WriteBatch eventually
+and reduce syscalls by maybe an order of magnitude
+
+
+====================================================================
+
+LUNCH
+
+====================================================================
+
+Jason Keene - Dynamically instrumenting Go programs
+[Colorado Mile-Hi Gophers; Pivotal and now Coinbase]
+
+wat.io/src; https://wat.io/posts/uprobes-and-bpf/
+https://github.com/jasonkeene/wat/tree/master/src
+
+instrumentation allows you to take measurements:
+tools like BPF, uprobes, ptrace, delve
+
+observation can change the system being observed; latency increase
+for example by engaging the tool
+
+tool levels
+- static, always on (logs, metrics, tracing)
+- static, activated on demand (debug logs, pprof, usdt probes [dtrace])
+- dynamic: debuggers, tracers, uprobes/bpf
+
+more dynamic - more cost allowed, and maybe more coverage when engaged;
+no coverage all the time (that stuff must be very cheap to leave on)
+
+we want tools that can answer arbitrary questions - look at anything
+
+"streetlight effect" - static tools limit where we can look; what we
+want is a light that moves to where we need it
+
+dynamic tools don't involve compile-time changes; can be engaged later;
+ideally have a programmable interface for ad-hoc use
+
+ideal tools don't exist, but some neat things are available in Linux
+
+ptrace and debuggers:
+- debuggers use the ptrace syscall (see Liz Rice video)
+- can single-step, read & write memory and registers
+- delve is a go debugger
+- can insert a breakpoint at some location by swapping out some bytes
+  (trap replaces the old instruction which must be saved)
+- delve can then intercept the trap when it happens, and later resume
+- automating our interactions with the debugger speeds things along
+  (avoid blowing all the timers, etc.)
+- delve has a JSON-RPC API
+
+dlv := exec.Command("dlv", "attach", PID, ...)
+addr := dlv.Start()
+need to wait for it by checking the delve IP addr
+
+client := rpc2.NewClient(addr)
+client.Continue()
+defer func() {
+    client.Detach()
+    client.Halt()
+}
+
+locations, _ := client.FindLocation(...)
+pc := locations[0].PC
+bp := api.Breakpoint{Name: "xx", Addr: pc, ...} // can add variables to view
+
+for {
+    client.Halt()
+    client.CreaetBreakpoint()
+    state := <- client.Continue()
+    // breakpoint hit
+    client.ClearBreakpointByName()
+    client.Continue()
+    
+    count := state.CurrentThread.BreakpointInfo.Valiables[0].Value
+    fmt.Printf()
+    time.Spleep(1*time.Second)
+}
+
+he did this as a --report option and so 1/sec it prints out the counter
+value
+
+what about catching a function on every call? we can do the same thing
+we'll read from the channel very often, which has lots of overhead
+(from millions of ops/sec down to 100s of ops/sec when we do that ...)
+
+10x to 100x slowdown to get variables due to context switches and other
+overhead
+
+what if we moved all that stuff into the kernel?
+
+uprobes + BPF:
+- uprobes can instrument any instruction in user space very cheaply
+- kernel sets the breakpoint for us
+- handled by kernel space code using some code we provide
+
+uprobe handler: kernel module? custom kernel? don't want to do that
+so BPF
+
+BPF is a custom instruction set you can inject into uprobes
+use the BCC compiler for BPF programs written in C, provides utilities
+libbcc.so
+
+BCC compiles and injects the BPF probe into uprobe into our program
+our BPF handler gets invoked cheaply
+async sharing data from the kernel to userspace with BCC program
+
+bpftrace: new tool which makes writing these programs very straightforward
+
+uprobe:/tmp/counter:"main.doWork" {
+    @ = *uaddr("main.counter")
+}
+
+interval:s:1 {
+    printf()
+    @prev = @;
+}
+
+BPF trce gets us into about 300K ops/sec, up from 100s and down from
+millions/sec
+
+goBPF: now we can do it in Go (Go bindings for libbcc, and needs cgo)
+[probably not available in pure Go world]
+
+const bpfSource = `
+BPF_ARRAY(count, u64, 1);
+int read_counter()
+{
+    u64 *counterP = (u64 *)%d;
+    int first = 0;
+    u64 zero = 0;
+    val = count.lookup_or_init(&first, &zero);
+    bpf_probe_read(val, sizeof(*counterPtr), counterPtr);
+}
+`
+
+counterAddr := lookupSym(...) // uses elf package to get sym addr
+m := bpf.NewModule
+probe, _ := m.LoadUprobe
+m.AttachUprobe
+table := bpf.NewTable(m.TableID("count"), m)
+var prev, count uint64
+
+for {
+    data, _ := table.Get([]byte{0})
+    count = binary.LittleEndian.Uint64(data)
+    fmt.Printf("counter: %d\t(%d ops/s)\n", count, count-prev)
+    prev = count
+    time.Sleep(time.Second)
+}
+
+same performance as using BCC externally
+
+delve can do lots, EXCEPT high-frequency events; bpftrace/goBPF
+don't have a lot of capacity, but don't understand Go programs
+
+next up on his blog: Frida https://www.frida.re
+see also the FOSDEM-2016 slides from their site
+
+[other stuff: https://www.youtube.com/watch?v=8-X48nI7LK4, 
+ https://www.youtube.com/watch?v=Cv-F3cHsXiI]
+
+see also https://www.meetup.com/Boulder-Gophers/
+next meeting 8/15 1730 at Pivotal 1035 Pearl St. 5th Floor
+
+
+====================================================================
+
+Mike Seplowitz - Tracking inter-process dependencies using static analysis
+
+goals: deploy small changes often -> microservices; moved to Go
+as more services were added, how to figure them out?
+documentation is hard to keep up-to-date
+
+static analysis -> get artifacts from the current code base
+desired outcome:
+- dependency analysis
+- visualize inter-service dependencies in the whole set of microservices
+  (could then put traffic data on the static graph)
+- detect cycles
+
+plan:
+- find interesting function calls
+- find call destinations
+- service dependencies = edges of system graph
+
+what are interesting calls? http.Get, client.Get, net.Dial
+also calls to DB driver, gRPC calls, message queue ops
+
+these show interactions between one microservice and another
+(or a DB provider, etc.)
+
+could also look at process calls (exec), file calls (create/open/mkdir)
+
+we can look at function calls or places where structs are used
+
+with the calls, we want the address: service URL, DB name, etc.
+or even env variable names; this could get complicated fast
+
+annotate calls with comments, e.g., // ->myservice
+(but this means folks need to keep the comments up-to-date)
+
+[*** a lot has been left here ... we could really build a tool that figures
+ *** out what's going on from looking at code without annotations by devs]
+
+[what about dynamic instrumentation of select calls to capture the parms?]
+[what about a tool to add some code around various calls to collect URLs?]
+[static - hard to get URLs that are programmatically assembled; dynamic
+ could just be done with tracing tools already available]
+[you could enforce that interesting calls take a parm in the form of a
+ variable, not an expr; this could be enforced statically; then get the
+ variables contents, but it's still not visible at compile time; what
+ about using only constants for URLs, or only worrying about the const
+ part of a URL ... maximize the predictability]
+[life is much easier if you're looking at gRPC methods as opposed to
+ REST with JSON; who uses the methods, and who implements them?]
+
+which calls do we want to mark? could have a helper function which just
+calls http.Get() including some libraries like retryablehttp
+
+main -> main.getGolang -> retry.client.Get -> retry.client.Do -> client.Do
+
+which to pick? find the first place where we have a specific URL in the
+program text (could be literal, const, or variable -- but it's all there)
+
+mark all the paths from main() to the http.Get() function with the URL
+
+Go has packages to create call graphs based on SSA nodes; first need to
+use the tools to parse into SSA
+
+in fact there are lots of analysis/... packages for static analysis; see
+also the sources to various linters/analyzers that already exist
+
+so:
+1. generate SSA
+2. build a call graph using e.g. rta.Analyze
+3. traverse it, marking paths to "interesting" calls
+4. generate lint errors for unmarked paths
+5. report markers as dependency data for external analysis
+
+heavy use of tokens & AST package, less so for const evaluation; be sure
+to read the SSA documentation (member, value, instruction, node) most
+of which is on the interfaces (!)
+
+some bumps in the code:
+- no declared facts => no dependency ordered tree of analyzer passes,
+  no syntax analysis of dependent packages
+- buildssa isn't modular, each pass builds a new ssa.Program (again)
+- buildssa also hard-codes BuilderMode(0)
+
+singlechecker can parse command-line flags for you; but singlechecker.Main()
+calls os.Exit() so you can't report the results ...
+
+you might try to run singlechecker in a child process, but still multiple
+passes with their own SSA builds
+
+attempt #2: use Andersen's pointer analysis instead of RTA and a simpler
+driver with ssautil.AllPackages and then Build() and then pointer.Analyze()
+then visualize the call graph
+
+the easy part is printing out the call graph (compared to reporting linter
+errors)
+
+what comes out of his tool starts to look like calltrack in DMS SOS, except
+that it's static
+
+lots of junk shows up; opening stdin/out/err and reading random numbers
+from crypto/rand; also DNS stuff
+
+some false positives show up: some filenames show up even when files aren't
+being opened
+
+also the once.Do problem: any of the call sites could be the real calls,
+but only one of them ... and some of these call net.lookupProtocol and
+some other basic things in the lower levels of networking ... and the
+initial syscal.Getenv
+
+what's the problem: the call graphs all centralize on once.Do (everybody
+calls that, and it calls several things, which then appear in the call
+graph of anyone using once.Do ... which is bad)
+
+so there's extra work getting rid of once.Do as the middle man, so we know
+how actually calls which functions via once.Do
+
+and then we bump into reflection ... which pretty much prevents static
+analysis altogether (e.g., go-flags)
+
+"RTA doesn't include edges for calls made via reflection"
+
+takeaways:
+- call graphs can be easy right up to the point where you fall off a cliff
+- some documentation is great; there's lots of under-documented stuff in /x/
+- godoc is a reference, not a guide to actually USING the underlying code
+  [not an application guide / tutorial]
+- start simple!!
+- ask questions early!!
+

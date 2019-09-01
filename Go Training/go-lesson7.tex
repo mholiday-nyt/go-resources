@@ -1,0 +1,116 @@
+%\documentclass[compress,t,11pt]{beamer}
+\documentclass[handout,compress,t,11pt]{beamer}
+\usetheme[]{metropolis}           % Use metropolis theme
+\usefonttheme{serif}
+\definecolor[named]{Gray}{RGB}{111,112,114}
+\definecolor[named]{DarkGray}{RGB}{48,48,48}
+\definecolor[named]{Cardinal}{RGB}{179,22,34}
+\usepackage[T1]{fontenc}
+\usepackage[altbullet]{lucidabr}
+\usepackage{textcomp}
+\usepackage{upquote} % needed to make straight quotes work in listings
+\usepackage{listgolang}
+\usepackage{mathtools}
+\usepackage{comment}
+\usepackage{tikz}
+\usepackage{tikzsymbols}
+ \usetikzlibrary{trees,shapes,plotmarks,arrows,er,automata,petri,topaths,positioning}
+\usepackage{pifont}
+\usepackage{clrscode}
+\usepackage{setspace}
+\usepackage{soul}
+\usepackage{hyperref}
+
+\setbeamercolor{palette primary}{fg=white,bg=Cardinal}
+\setbeamercolor{palette secondary}{fg=white,bg=Gray}
+\setbeamercolor{palette tertiary}{fg=white,bg=Cardinal}
+\setbeamercolor{palette quaternary}{fg=white,bg=Gray}
+\setbeamercolor{palette sidebar primary}{fg=white,bg=Cardinal}
+\setbeamercolor{palette sidebar secondary}{fg=white,bg=Gray}
+\setbeamercolor*{titlelike}{fg=Cardinal}
+\setbeamercolor{structure}{fg=Gray}
+\setbeamercolor{title separator}{fg=Cardinal}
+\setbeamercolor{alerted text}{fg=Cardinal}
+\setbeamercolor{reversed}{fg=Cardinal,bg=black}
+
+\newcommand{\card}[1]{\ensuremath{\left|#1\right|}}
+\newcommand{\norm}[1]{\ensuremath{\|#1\|}}
+
+\title[Programming in Go]{\bf Programming in Go\\ Lesson 6: How It All Works}
+\author{Matt Holiday} 
+\institute[CP]{Cardinal Peak}
+\date{19 January 2019} 
+%\titlegraphic{\hfill\includegraphics[width=.25\textwidth,height=.25\textheight]{cp-logo-2x.png}}
+\titlegraphic{
+\begin{tikzpicture}[overlay, remember picture,scale=0.4]
+\node[at=(current page.north east), anchor=north east] (a) {};
+\node[below left = 0.1cm and 0.1cm of a] (b)
+{\includegraphics[width=.25\textwidth,height=.25\textheight]{cp-logo-2x.png}};
+\node[below left=2.56cm and 2.9cm of b]
+{\includegraphics[width=.1\textwidth]{go-logo.png}};
+\end{tikzpicture}}
+
+\setbeamerfont{footline}{series=\bfseries\selectfont}
+\setbeamersize{text margin left=12pt,text margin right=12pt}
+\linespread{1.0}
+\metroset{block=fill}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=Cardinal,
+    filecolor=magenta,      
+    urlcolor=blue,
+}
+
+\begin{document}
+\frame{\titlepage} 
+
+%\section{Introduction}
+\begin{frame}[fragile]
+    \frametitle{Lesson \#6}
+    Advanced Ultimate Go:
+    \begin{itemize}
+    \item Performance; the full Knuth quote
+    \item Scheduling
+    \item What can go wrong
+    \item GC
+    \item Memory issues
+    \item Profiling
+    \item Zero-copy hacks
+    \item ...
+    \end{itemize}
+\end{frame}
+
+
+
+% =================================================================================
+
+
+\section{Share memory by communicating}
+\begin{frame}[fragile]
+    \frametitle{Concurrency in Go}
+    Goroutines, channels, and select
+\end{frame}
+
+
+\begin{frame}[fragile]
+    \frametitle{Enumerated types}
+    There are no real enumerated types in Go \par
+    \vspace{0.5\baselineskip}
+    You can make an almost-enum type using a named type and constants:
+\begin{golang}
+    type shoe int
+
+    const (
+        tennis shoe = iota
+        dress
+        sandal
+        clog
+    )
+\end{golang}
+    \vspace{0.5\baselineskip}
+    \verb|iota| starts at 0 in each \verb|const| group and increments once \\
+    on each successive line
+\end{frame}
+
+\end{document}

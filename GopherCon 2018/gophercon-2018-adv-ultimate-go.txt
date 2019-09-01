@@ -1,0 +1,541 @@
+ADVANCED ULTIMATE GO at GopherCon 2018
+======================================
+
+VALUE SEMANTICS, POINTER SEMANTICS, GC COST [morning session part 1]
+
+- value vs pointer semantics
+- data oriented design - every problem is really about data
+
+- 4 issues
+    latency
+    GC - reduce allocations - use tools to find issues
+    accessing data - allow h/w to work ("mechanical sympathy": caches, etc.)
+    algorithmic efficiency - don't need theoretical perfection, but understandable code
+
+hardware: multi-core CPU + hyperthreading (e.g., 2x virtual cores: 8 on my 4-core i7)
+goroutines are cheaper than threads
+threads have stacks (1 MB), and goroutines have stacks (2K, but grows)
+goroutines are scheduled onto threads which are scheduled onto virtual cores
+
+code in a goroutine is limited to a sandbox (no thread-local vars, etc.)
+that code only reads/mutates/allocates memory
+everything the goroutine does starts from its stack
+
+go code is all pass-by-value ("value semantics"), which implies lots of copying
+(unless you pass a pointer, including map/slice/channel objects where the pointer is implied)
+
+function call creates a new stack frame
+it's perfectly OK to take the address of a stack-based object and pass it on
+go performs "escape analysis" and knows to allocate an "escaping" object on the heap
+but that does require a heap allocation
+
+pointers exist to share and thus gain efficiency (avoid copies)
+they allow [explicit] pass-by-reference at the cost of uncontrolled side-effects
+(because there are no pointers to constant things)
+
+factory functions - return a value (copied to stack) or a pointer (allocation required)
+escape analysis prevents us from keeping a stack frame around as a unit for a long time
+it's not about the code that constructs the object, but whether it's shared via a pointer
+
+func create1()  user { u := user{ ... }; return  u }     // copy back
+func create2() *user ( u := user{ ... }; return &u }     // pointer to heap object
+
+"convention over configuration" -- we didn't (in the code) tell go how to allocate u
+(same concept as using capitalization to determine package exports)
+
+BUT we could have done this (CODE SMELL)
+
+func create2() *user { u := &user{ ... }; return u }     // pointer to heap object
+
+which doesn't make it so obvious that we've returned a pointer unless we read up
+(i.e., read the whole function)
+
+prefer to allocated locally and choose to return a pointer if needed, letting go do
+it's escape analysis for you and letting the return line carry all the "sharing" info
+
+OR we could have done this (CODE SMELL, ONLY WORSE)
+
+func create2() user ( u := &user{ ... }; return *u }     // actually a copy back
+
+go should avoid allocating u on the heap since we're not letting it escape in fact
+
+NOTE that if the goroutine stack runs out of space, go will allocate a new one (25% larger)
+and copy the contents and adjust pointers as needed (keep contiguous, which is costly)
+
+ALSO NOTE that if the compiler doesn't know the size of something, it can't put it on
+the stack -- it will have to be put on the heap (e.g., array sized by input parameter)
+
+ALSO NOTE that if an object exceeds some maximum size it will always go to the heap (8K?)
+
+ALSO NOTE that there is no tail recursion in go -- must convert code manually to iteration
+
+IMPLICATION - no goroutine may have a pointer to something on another goroutine's stack
+(otherwise the cost of updating all the stack pointers would be brutal), and so all such
+objects must be allocated on the heap (channels are always there)
+
+go doesn't have a compacting / copying GC collector; shouldn't need it. GC is concurrent
+with a three-color mark & sweep scheme. Stopping time is very very short as of gcc 1.10
+(only to create the write barrier when GC starts a cycle). Stopping points are functions
+calls -- so we need all goroutines to come to a function call before GC can get started.
+
+IMPLICATION - we can't have long-running tight-loops that don't make function calls or
+we'll cause GC to be delayed (waiting for a [fully?] preemptible scheduler in 1.12)
+
+So we want to reduce short-lived transient objects as that's what puts pressure on GC; also
+we really want to avoid global variables so we can just focus on the stack.
+
+GOGC env variable tells us how big the heap should be as a percentage of the "live" heap
+(100% means the heap is really twice the live heap size). We don't want the live heap
+to outgrow the heap as that would cause reallocation of the heap itself. We don't want
+a very large overall heap because stop-the-world time would grow with the heap. We want
+to keep the live heap small by reducing short-lived allocations; only allocate long-lived
+objects. Profiling will help us find these short-lived allocations and escaping variables.
+
+If a goroutine creates too much junk during GC it may be coopted by GC to help finish GC!
+
+Write simple, readable code and then let the profiling tools tell you what to fix.
+
+value semantics implies: data is on the stack and limited to the current goroutine's sandbox
+pointer semantics - how could mutating / allocation cause side effects in the rest of the program?
+
+----- break ----- break -----
+
+
+SLICES AND CACHE PERFORMANCE [morning session part 2]
+
+go doesn't have much in the way of built-in structures: arrays, slices, structs, maps
+
+benchmarking:
+- write a _test.go file (e.g., cache_test.go for cache.go)
+- ensure you copy a function results back to a global variable to avoid dead-code stripping
+- be aware numbers are relative to your machine and depend on what else is running alongside ...
+
+$ go test -run none -bench . -benchtime 3s
+
+example in class compares link list, matrix column, and matrix row traversal with row traversal
+being the fastest [probably uses slices :-], and matrix traversal got faster after the first run
+[probably impacted by caching - matrix sized to force CPU & TLB cache misses]
+
+to get performance, per Scott Meyers:
+- make your structure fit in cache
+- ideally on a cache line (64 bytes) or at least on the same virtual memory page (often 4K)
+- run your code out of cache
+- note everything in L1 & L2 cache must be in L3 cache, and that's small (8 MB on my core i7)
+- L1 is 64K per core (half data, half instructions), L2 cache is 256K per core
+- L1 4 cycles latency (16 cycles stall), L2 11 cycles (44), L3 39 cycles (156/13ns) [assume 3 GHz]
+- main memory is so slow it might as well not be there (107 cycles, stalls 428 / 36 ns ;-)
+
+LOCALITY IS KING
+
+prefetcher requires a predictable access pattern to be effective which must be established by your
+code, ideally with contiguous memory => arrays!
+
+so you could argue the array structure is the most important, but really it's the slice based on an
+underlying array that provides the predictability (slice of values not pointers)
+
+the other cache that matters is the TLB used for virtual memory; a TLB miss is even more expensive
+(requires searching page tables in main memory, and could be a double hit if you're running in a VM!)
+
+program speed now depends more on memory read times / cache hit rate than on processor speed
+
+use data-oriented design and not object-oriented design for compiled-to-hardware languages such as go
+(JVM-based languages will have the JVM/JIT to help achieve mechanical sympathy as they run); avoid
+structures based on linked lists as opposed to arrays/slices
+
+performant trees need to ensure entire tree levels are in contiguous memory
+
+    for i, fruit : range fruits { ... fruit ... }              // value semantics
+
+is better than
+
+    for i := 0; i < len(fruits); i++ { ... fruits[i] ... }     // pointer semantics
+
+strings, arrays etc. are designed around value semantics with implicit pointers to back storage
+(string/bool/integer values shouldn't end up on the heap; but SQL requires an address to allow NULL)
+
+method calls - value vs pointer receivers
+if you use a pointer receiver for one method, you should for all methods of that type
+except perhaps marshall/unmarshall functions - but those are calls down the stack
+
+if the type is []byte, for example, this is a "reference" type and should use value semantics
+
+    type IP []byte
+    type IPMask []byte
+
+    // Mask is using a value receiver and returning a value of type IP. This
+    // method is using value semantics for type IP.
+
+    func (ip IP) Mask(mask IPMask) IP {
+       ...
+    }
+
+because we use value semantics on slices since the sharing part is built-in already for us
+pretty much every built-in type string/slice/map etc. should be based on value semantic use
+
+you only need to think about this when creating a new type, e.g., a struct
+think about the semantic of mutation -- e.g., adding 5 seconds to a time creates another time,
+but adding another person to the enrollment of a class doesn't produce a new class, and
+writing some bytes to a file doesn't create a new file
+
+the factory function should be declared first as it usually tells you the semantics used by
+the type -- does the factory return a value or a pointer?
+
+if the API uses pointer semantics (the factory function returns a pointer), you should assume
+you cannot copy the underlying structure (unless you call some function from the package)
+
+having said that, avoid methods or functions on the whole type when you could write a function
+that takes the explicit pieces you need as parameters -- law of demeter -- but I'm not sure
+that applies if we consider the type's struct to be opaque
+
+functions are more precise than methods, and adding a parameter will make it clear the API
+changed underneath, as opposed to using another field of a struct that might not be right
+
+this is somewhat opposed to normal OOP and may create brittle code that requires lots of work
+to pass parameters around
+
+----- lunch ----- lunch -----
+
+mixing value and pointer semantics with struct types is a CODE SMELL
+
+a method allows data to exhibit behavior, but methods are declared outside of a type and are
+not conveyed to type aliases, e.g., 
+
+    type bill data
+
+doesn't pick up methods declared on data, because methods are really a type of syntactic sugar
+
+NOTE ALSO that if we create a closure from a method it will get a copy of the receiver at that
+point and won't see changes, e.g.
+
+    func (d data)  displayName() string { ...}
+    func (d *data) setAge(age int) { ... }
+    var d data
+
+    f1 := d.displayName
+    f1()
+    d.name = "Joan"
+    f1()                     // same value, because displayName took a VALUE receiver
+
+    f2 := d.setAge           // pointer receiver, so only the pointer is captured!
+    f2(45)
+    d.name = "Sammy"
+    f2(45)                   // in this call, the name change is seen
+
+
+INTERFACES [afternoon part 1]
+
+interfaces declare behavior only by specifying one or more function signatures (without
+semantics -- nothing has changed in 40 years :-); method calls against an interface are
+polymorphic (= program changes behavior depending on the concrete data passed in)
+
+NOTE interfaces cause decoupling in a similar way to pointers and have a performance impact
+due to the way we identify interfaces on data
+
+    type reader interface {
+        read(b []byte) (int, error)
+    }
+
+    var r reader                          // value-less variable
+
+interfaces aren't "real" in the sense that a concrete struct type exists, but an interface
+is an abstraction
+
+CODE SMELL - having your interface function return a slice, e.g.
+
+    func read(n int) ([]byte, error) {
+        s := make([]byte, n)             // allocate the slice to return
+        ...
+        return s                         // copy the escaping value
+    }
+
+we can call stuff on value types, even though there's no actual type "reader"
+
+    func retrieve(r reader) error {
+        data := make([]byte, 100)
+        ...
+        len, err := r.read(data)
+    }
+    
+    ...
+    
+    retrieve(f)         // f is a file implementing read()
+    retrieve(p)         // p is a pipe implementing read()
+
+[I think this is really intended to point up the value of taking/returning io.Reader etc.]
+
+how does this work? a variable of interface type has two bits: a pointer to a type table
+and a pointer to a piece of data
+
+NOTE that until we store, e.g., r := file.New(), r has the value nil, and calling a method
+on it will panic
+
+does the reader have to be on the heap? that's up to escape analysis, but escape analysis
+doesn't work with double indirection, but interfaces involve double indirection, so it's not
+going to work as well as we'd like, resulting in unneeded allocations
+
+"all pointers or reference types passed to methods through interfaces will point to (reference)
+heap-allocated objects"
+
+[[ it's not that we put something into a interface, but that we make a method call with
+   that interface, that causes the object to be placed on the heap ]]
+
+ALSO NOTE that if the concrete type has a method on the pointer receiver and the function taking
+the interface takes value semantics -- it won't work, because the concrete value object doesn't
+have that method -- you have to call through the pointer
+
+not all values are addressable, particularly compile-time constants such as literal numbers, so
+using pointer semantics on methods can run into issues in some cases where the thing can't
+provide a pointer
+
+since you shouldn't go from pointer -> value semantics, then choosing pointer semantics locks
+you in to sharing only through pointers/interfaces; but the reverse is not true
+
+    // assume user implements interface printable
+
+    u := user{"Bill"}
+    entities := []printable{u,         // store a copy of the value
+                            &u         // store a copy of the pointer
+    }
+
+but if we change to CODE SMELL
+
+    u := &user{"Bill"}
+    entities := []printable{u,         // we don't know what happens
+                            u          // we don't know what happens
+    }
+
+and then use a value-based for range
+
+    for _, e := range entities {
+        e.print()
+    }
+
+where each "e" is a copy (and if it was a value-based interface thing, it's a copy of the
+user type, and won't be changed by changing the original concrete object)
+
+WORKLOADS
+
+cpu-bound (goroutine never waits) and IO-bound (goroutine may be forced to wait and then
+be re-scheduled) [as of 1.11, cooperative scheduling requires goroutines to yield every
+so often, possibly by calling a function; it can't if you're in a tight loop]
+
+go has two queues: the global run queue, and the local run queue for a given processor
+(which means it's waiting for a machine that runs on that processor)
+
+things that invoke the scheduler:
+- go statements (create a goroutine)
+- running GC
+- system calls
+- any type of blocking call (synchronization)
+
+otherwise a goroutine will run without limit, i.e., if it's in a tight computational loop
+and not making calls (CPU-bound)
+
+if your workload is all CPU-bound there's no value in having more goroutines than processors!
+but if you've gots lot of IO work, then you want more goroutines so you can have more of them
+working (while others work) -- but you still don't want zillions of goroutines with 4-8 cores
+
+IO-related work can be put on a "net poller" (e.g., using epoll and async calls) freeing up
+a machine to run other code; otherwise we may have a blocking call throw a machine off the
+processor altogether and pick up an extra machine (more overhead)
+
+from the OS perspective, goroutines on the same thread are seen as CPU-bound and share cache
+because we don't need to pull the thread off the core -- we just switch goroutines in the
+thread -- this is going to be particularly true when the communication is via channels that
+the OS doesn't even see
+
+synchronization (atomic/mutex) and orchestration (scheduling/channels) are TWO DIFFERENT ISSUES
+
+channels make orchestration easier than using mutexes for this; but pure synchronization is
+better done with mutexes
+
+
+----- break ----- break -----
+
+ORCHESTRATION PATTERNS USING CHANNELS [afternoon part 2]
+
+unbuffered channel = Ada rendezvous, which implies synchronization, so there's a guarantee
+that the receiver has received the signal before you move on, but at the cost of unknown
+latency before that happens
+
+signaling with data: unbuffered = guaranteed, buffer[1] = delayed, unbuffered = no guarantee
+
+channel state: nil = blocked (but reads return immediately); sending on a closed channel
+causes a panic, while reads are OK (but use the two-value form to get "ok")
+
+channels can be used for cancellation: but best to use "context" if you can; using a buffered
+channel is bad since you don't know when they'll get it
+
+SEE https://github.com/ardanlabs/gotraining/blob/master/topics/go/concurrency/channels/example1/example1.go
+
+1. waiting for a task - use an unbuffered channel (one way)
+
+2. waiting for a result - use an unbuffered channel, send in something, get something out
+
+3. waiting for finished - make an empty struct channel, read to get the close as a one-time signal
+   (this is the opposite of cancellation)
+
+4. pooling - create some workers and distribute work to them, close channel when there's no more work
+
+5. fan out - you collect work from workers that didn't need your input, but you wait for all of
+   them to finish buffered channel matching the size of the worker group
+
+6. fan out with semaphore - one buffered channel of bool to control how many workers can activate at
+   any one time - you take the sem by sending into the channel, and release by receiving from it
+   (both of those are done by the worker!)
+
+   not a good match for "order matters" -- because that's much harder (probably true for most of this)
+
+   otherwise same as #5; a wait group won't work for this; don't use defer() to release the semaphore
+
+7. drop - you want to drop excess work (e.g., DDOS); involves a "select" with "default" to drop data
+
+8. cancellation with timeouts - buffered[1] channel so sender doesn't block, select with timeout case
+
+DON'T think of a channel as a queue, but more about a signal (with or without data)
+
+
+----- break ----- break -----
+
+ADVANCED PATTERNS
+
+deadlock when logs fill up the disk
+use a channel and a select with default - this is an example of #7 (drop) on failure of the output
+
+SEE https://github.com/ardanlabs/gotraining/blob/master/topics/go/concurrency/patterns/logger/logger.go
+
+PROFILING AND TRACING
+
+let's see if we can get the code fast enough
+example: document search for a term
+
+SEE https://github.com/ardanlabs/gotraining/blob/master/topics/go/profiling/trace/trace.go
+
+use time(1) on the program to get a rough idea how long it takes
+ok, it's not fast enough
+
+profiling: looking for CPU hot spots / memory hot spots (doesn't do anything for IO?)
+
+(1) use pprof.StartCPUProfile(os.Stdout)
+
+    threads interrupted every 10ms to get program counters using operating-system utilities
+    need to rebuild
+    program will take longer to run with profiling on [could that change heisenbugs?]
+    run >p.out
+
+    go tool pprof -http :3000         // brings it up in a more readable form
+    go tool pprof p.out               // text file to vim
+
+    p.out is a listing with data in the left column - cumulative cost at that function call point
+    (in the example, most time in OpenFile())
+    
+    (pprof) web ?        -> graphical view of call stack
+
+(2) use trace.Start(os.Stdout)
+
+    this will give us a better view down to 1us granularity
+    tells us what is not happening?
+
+    run >t.out
+    go tool trace t.out
+
+    opens browser
+    view trace - shows heap, thread, syscall performance
+    use option key while scrolling to blow it up
+    (in the example, heap shows a sawtooth pattern in live heap behavior)
+    (we are reading the whole file into memory in one go, then searching it -- large temp allocation!)
+    (we are only running one processor at a time -- one main routine)
+
+    (example: change to use goroutines, but atomic incr of a "found" variable -- cache thrash)
+    [also mentions false sharing where two different vars are in a single cache line]
+    (ok, better: counter local to one goroutine / file, pass back to global when file done)
+    (ok, best: cap the number of goroutines, send result when goroutine stops; pattern #5 or #6)
+    
+    new in 1.11: trace.NewTask(context.Background, <filename>) in the loop for each file -- trace 
+    then identifies expensive files; trace.Region(<name>) breaks it down even further within task
+
+(3) GODEBUG=gctrace=1 in the environment
+
+    the console spits out some stats for each run of GC:
+    - time into the run
+    - CPU
+    - GC wall clock time (stop-the-world, concurrent, cleanup)
+    - GC CPU clock time (ditto)
+    - size before/size after/live heap size
+    - goal
+    - # of processors
+
+    you will also see the scavenger and forced GC runs
+    hey or engrok (sp?) to generate load
+    GC runs a lot because the heap is too small (?): 1387 requests/sec, 2500+ GC runs
+    no memory leak because after idle GC takes the heap down to expected default size
+
+(4) debug service to get memory usage info
+
+    SEE ardanlabs/service to see a starter web server in Go as a template for development
+    adds a debug service to the default server mux
+    also import _ pprof to get pprof to show up in that debug service
+
+    so now we go to http://<server>/debug/pprof (don't do this on a production server!)
+    and there we can get alloc / in-use space information
+
+    alloc space gives us the low-hanging fruit
+    go tool pprof http://<server>/debug/pprof/allocs           ### new in 1.11
+    (pprof) top 40 -cum
+
+    example: search.rssSearch does 4.6 GB out of 6.2 GB total allocation in the run
+    
+    (pprof) list rssSearch
+
+    example: 4.5 GB allocated in strings.Contains() calls
+    
+    (pprof) web list rssSearch
+
+    shows huge allocation in a ToLower() call in code written as a demo of bad practice
+    immutable ToLower() on the description and the term (but the term doesn't change!)
+    
+    ToLower() should be done when the data is read/cached at startup -- not each search!
+
+    example: now we're down to 1480 GC runs, and we get 2800+ requests/sec (about double!)
+
+
+----- break ----- break -----
+
+MICRO-OPTIMIZATIONS
+
+benchmarking
+
+    $ go test -run none -bench . -benchtime 3s -benchmem -memprofile p.out
+
+where do the allocations come from?
+
+    $ go tool pprof p.out
+    (pprof) list algOne
+
+    NewBuffer()
+    make([]byte, size)
+
+add another -gcflags "-m -m" to check escape analysis before the benchmark runs
+go inlining call to NewBuffer(), but it returns pointer semantics for the buffer
+shouldn't allocate if the call is inlined; but algOne is allocating and algTwo not
+so why is the allocation is happening? interface conversion in io.ReadFull!
+algTwo is calling input.ReadByte(), i.e., calling a method off the concrete type
+we can move to using input.Read([]byte) to avoid interface & allocation cost
+
+remaining allocation of []byte is due to non-constant size of buffer required, but
+we could actually use a smaller buffer of fixed size, eliminating one more allocation
+
+use -cpuprofile instead of -memprofile to get CPU information
+
+using a benchmark "test" can allow micro-optimization of small ranges of code for
+these type of fine details -- only beware that "micro-benchmarks" may not hold
+in production, so always validate the results in the real world (check your work)
+
+NOTE: your machine must be idle when your benchmark runs; include time to idle
+after running some other benchmark -- so don't run them multiple at a time
+
+bill@ardanlabs.com
+https://goinggo.net
+https://invite.slack.golangbridge.org
+
+github ardanlabs/service for the example web service

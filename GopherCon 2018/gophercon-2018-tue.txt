@@ -1,0 +1,744 @@
+GopherCon 2018 Tuesday
+
+============================================================================================
+
+Keynote: The Go scheduler
+
+what problems does the goroutine scheduler need to do?
+- goroutines are "user space" (cooperative) threads
+- they are lighter and cheaper than Unix threads (less stack)
+- goroutines are scheduled onto Unix threads
+- must run for goroutine creation, blocking goroutines/system calls
+ (note that a system call will also involve Unix scheduling)
+- use a limited number of Unix threads
+- support lots of goroutines, lots of cores (should run #cores in parallel)
+- ideally we can swap goroutines on a single thread so the thread isn't descheduled by Unix
+
+how should it work?
+- when should we create Unix threads, and how to distribute goroutines?
+- need queues to track goroutines ready to be run somewhere
+- N:1 (all goroutines in one thread) doesn't provide any concurrency, non-starter
+- N:N (one Unix thread per goroutine) costs too much, also a non-starter
+- N:M creates a pool of M Unix threads and distributes N goroutines on it
+- so we may have some Unix threads "parked"
+- oops, all threads using one queue serialize through the queue's lock
+- oops, need to limit thread creation on goroutine creation (GOMAXPROCS)
+- threads blocked on system calls might not count towards this limit
+- how many Unix threads should be make? default to the number of (virtual) cores
+- oops, if we have LOTS of cores we may still have a contention issue on the queue
+- so, create a local runqueue per thread; global runqueue only for new goroutines
+- what if the local runqueue is empty? steal work from another Unix thread
+- what to do if the Unix thread blocks on a syscall? move work to another thread
+- we do that by creating a "machine" to run on a Unix thread and package everything
+- may need to create an extra thread if there isn't one parked
+
+one more thing:
+- it's all cooperative; but what happens if a goroutine is CPU-bound and doesn't yield?
+  (but note that GC may interrupt goroutines and force scheduling on allocation)
+- up through 1.11, we have "cooperative preemption" via a system monitor thread
+- it attempts to preempt long-running goroutines, and dumps them back to the global runqueue
+- so actually the global runqueue is low-priority (and may be used in certain other cases)
+- in 1.12 expect some more preemption
+
+what are the current limitation?
+- no priority concept today
+- but that does avoid priority inversion problems
+- no strong preemption today - no fairness or latency guarantees (as of 1.11)
+- current scheduler is not aware of the actual system architecture
+  (it's not NUMA aware, and doesn't necessarily enforce as much locality as possible)
+
+============================================================================================
+
+Macaroons and how to fail from over-engineering (OK, that's clickbait)
+
+Macaroon
+- a new type of aiuthorization credential (Google, 2014)
+- authentication (who are you), authorization (what can you do)
+
+old way:
+- use basic auth
+- map path to policy and then check policy from auth
+- generate a token
+
+issues:
+- anyone with a key can start the car, or
+- only the identified driver can start the car
+- but we need to have the valet park the car
+- so the key must transfer, but that's a lot of power to hand off
+- if instead we program the car for the valet, we need more infrastructure
+  (and what about letting him drive the car some other time)
+- ACL model doesn't work with more than two principals across multiple calls
+  (confused deputy problem)
+- e.e., cross-site request forgery; must generate a token per-session
+- adding some capability into an identity-based system
+
+macaroons:
+- bearer tokens, but contextually attenuated to work only withing certain circumstances
+- basic auth (net/http)
+- but: username / password required on every request, last forever
+- but: basic auth is only identity-based authentication
+- so, make a token from basic auth and return it to the client using an HMAC (crypto/hmac)
+- send the token on further requests
+- macaroons are cookies with layers of added capability data (go-macaroon/macaroon)
+- for example, token includes hmac of auth and a "read-only" capability limitation
+  (compare Solidfire bulk access, token included job/time type data to limit it)
+- macaroon: location + id + caveat -> signature
+- add another signature for each caveat, which depends on prior layer
+- but the system may need to check each layer in order to verify a request
+- on the plus side, token doesn't need ID lookup, just verification and capability extraction
+- anyone can add a (third-party) caveat to a macaroon, e.g., sort of like oauth, but fewer calls
+- go out to Google as an identity service
+- but the third party needs to know the ID and the third-party macaroon must be passed in
+  along side the original macaroon
+
+Chain makes sequence product based on blockchain, hosting service
+- ledger service
+- dashboard service (knows users, emails, etc.)
+- SDK that runs in client to talk to ledger directly
+- ledger must go to dashboard for auth -- possible confused deputy
+- ledger can send macaroon to dashboard to add a third-party macaroon
+- but dsahboard must add another macaroon ("discharge macaroon")
+
+Disaster strikes:
+- availability dependence on dashboard to access ledger
+- difficult to use locally without an SDK, due to need for a discharge macaroon
+- user roles change (admin, etc.) but token didn't change automatically, confusion results
+- impossible to immediately revoke, due to five-minute timeout on discharge macaroons
+- but then each request needed to check discharge macaroon on discharge
+  (so why every use them)
+- macaroons too long to see on one line, and b64 encoding caused formatting issues on Mac
+- macaroon is also a poor name: cookie with layer is really a "macaron"
+
+So this turned out to be harder than necessary:
+- back to basic auth, but with some modifications
+- but removing macaroons took 5 months (after only 2 weeks to add them :-)
+- macaroon conversion wasn't really possible (i.e., through a DB update)
+- needed to wait for per-use conversion of macaroons
+
+More thought was really needed on how they impacted the architecture before
+committing to them, the problem wasn't really that bad, so maybe it was
+overkill, and caused issues that weren't understood at the beginning
+
+Perhaps too much enthusiasm for grabbing cutting-edge technology
+Really an architect & project management problem
+
+============================================================================================
+
+Message from the Go team
+
+User requests: package management, error handling, generics
+
+
+Update on all three:
+
+1. Focus for the last year was package management
+   1.11 provides modules, no dependence on GOPATH, still will be improved in 1.12
+   Another year or two for folks to adjust
+
+2. Error handling, generics: still working on problems
+   Draft designs have been published
+   
+   Too much error checking, but not enough info being added to err before passing
+   it up
+   
+   check and handle - exceptions on the cheap, plus maybe additional interfaces
+
+3. Generics, lots of copy-n-paste
+
+   The real issue is specifying concepts, no change since Alphard
+   
+   contract declarations
+
+   contract Equal () { ... }
+   func x (type T Equal)(parms) return type { ... }
+
+SEE golang.org/s/go2designs - look for Go 2 designs
+
+What is the timeframe? not told
+
+============================================================================================
+
+Go for information displays
+
+Tour of packages and tools that are useful for display; sounds like charts/graphs/etc
+Edward Tufte and Nigel Holmes
+
+Speaker doesn't like graphical tools; programs are better at producing
+precision, efficiency, consistency
+
+SVGo       -- generates svg to an io.Writer
+OpenVG     -- wrapper to native C library for RPi acceleration
+Deck       -- package for making presentations
+
+all under github.com/ajstarks
+
+SVGo:
+- every method corresponds to a graphical element like a rect
+- uses ... in order to allow optional args
+- svgplay allows you to run code & image L <-> R, see results quickly
+- examples at https://ajstarks.com
+- usage to take json struct information and lay it out
+- lots of other great applications in 1D, 2D
+
+OpenVG:
+- again, basic functions for elements
+- time/weather/headline example app running on RPi with display
+
+Deck:
+- universal canvas for many things, including presentations
+- github-able result
+- XML markup
+- slide elements plus graphical/text subelements
+- layout on a percent grid for absolute positioning
+- scales to the canvas, e.g., portrait/landscape
+- of course, you can run a program to generate deck XML as output
+- dock/generate package
+- can pull in images from the web
+- shell script language
+- Deck web API to put/get/post presentations
+
+showed various graphic design ideas (10% header, footer; 30%/70% LR breakdown)
+go proverbs - look for his presentation
+
+dchart - charts for Deck
+- bar graphs, etc.
+- making Deck markup
+- command line options for labels, etc.
+
+what things in Go make this easy?
+- fmt package
+- writing lots of short func's
+- io interface
+- net/http
+- various encoding libraries
+- cgo allows openVG
+- community packages, e.g., go pdf
+
+Reducing the distance from the idea to the picture
+
+SEE speakerdeck.com/ajstarks
+
+============================================================================================
+
+Software is eating the world - Campoy
+
+photoshop 1     128k LOC
+WinNT 3         4-5 M LOC
+OpenOffice      9M
+Chrome          18M
+Windows XP      45M
+Ford F150       150M LOC
+Google          1 billion LOC estimated
+
+the tools we use to write code haven't evolved much over time
+(vi, ...)
+
+need better tools to write code better / write better code
+can the tools warn us before we go off the road?
+
+the we have tools aren't useless, but they don't necessarily scale
+
+machine learning ON Go code; reviews the tutorial
+SEE github.com/campoy, "just for func"
+
+use ML to know more about the code we have; research & use cases
+the input data is source code
+trying to discern what you meant vs what you coded
+
+related fields: data mining, natural language processing, graph-based ML
+requires: lots (LOTS) of data, fancy ML algorithms, and some luck
+
+challenges
+
+1- retrieve all the data
+    www.gharchive.org
+    pga.sourced.tech
+    4 GB of data
+
+tasks
+- language classification (enry, linguits)
+- file parsing (babelfish, ad-hoc tools)
+- token extraction (xpath / CSS selectors)
+- reference resolution (kythe project from Google)
+- history analsyis (go-git -- very neat image)
+
+srcd sql query tool, e.g., total lines of code per language in Go repo
+also, how many functions in Go programs
+SEE github.com/src-d/engine
+
+2- analyze the data
+
+what is source code? at what level should it be understood?
+tokens? syntax tree? ML likes strucures, but learning from trees is hard
+
+static analysis -> flow graph (flow chart)
+
+3- learning from code
+
+neural network, basically fancy linear regression machines
+with feeback
+
+oldest example, pixels -> letters/digits for text/handwriting recognition
+
+MLonCode - predict the next token, 61% accuracy
+
+recurrent neural networks, feed output back into its input
+e.g., for natural language understanding
+
+starts to output that sort of looks like Go code, not sure why you would
+
+actual use case: given a program and a gap, predict what variable is missing
+
+or, predict a good function name for a block of code
+https://code2vec.org
+
+4- what can we build with this?
+
+predicatable vs predicted
+-> attention model for code reviews
+
+what's the expected piece of code? find what looks "unexpected"
+e.g., find a copy-paste error where the variable is used twice wrongly
+s/from/to
+= Microsoft Intellisense
+
+highlight poorly-chosen names for code
+assisted code review: src-d/lookout
+
+automated style guide enforcement
+bug predition
+automated code review ...
+education (e.g., coding practice & outcomes)
+
+future:
+- code generation from tests, spec
+- natural analysis: code description and conversational analysis
+
+============================================================================================
+
+Breakout: Async Networking Patterns
+
+net package -- most people using net/http, etc., i.e. higher-level abstractions
+
+almost everything we'll do in this tutorial will be sync and blocking
+it used to be thread per request, which doesn't scale to 10K requests
+
+modern s/w based on an event loop (e.g., epoll and cousins)
+one or a small pool of threads, trying never to block or be idle
+async operations make this it not to block (e.g., async writes)
+no different than building a telephone switch
+
+for Go, make a goroutine per connection and let the Go scheduler do magic
+[this was covered in the keynote ;-]
+gets rid of the need to manage state, events
+
+how does the net package work?
+core fundamental interface -- net.Conn which is an interface for connections
+a few methods: read (io.Reader), write, close, addressing, deadlines
+
+for servers, use net.Listener and its Accept method
+
+make a listener, telling it what protocol to use, address/port
+loop accepting connections; on err see if its a temporary net failure, in which cause pause / continue
+
+accept returns a net.Conn object that we can then work with
+
+to test: use "nc" (netcat) utility
+$ nc localhost <port>
+> Hello, world!
+
+^D
+
+basic example code took a connection and blocked on it; we need to continue accepting
+so we need to take the Conn object we got back and feed it to a goroutine from that loop
+so move that code into a func, and go func(conn)
+
+the code is incredibly short, and we let the scheduler manage events for us
+avoid doing any work in the accept loop, because we don't want it to hang up
+
+always feed the connection to a goroutine, even if that work is just to determine
+what the protocol is, and figure out how to handle it next (pass to yet another
+goroutine!)
+
+for example, what if no data comes in? then the accept loop would just block...
+
+implementing timeouts to handle no input:
+- even with goroutines we don't want to keep the file descriptor of a dead socket
+- so if we're not getting input, close it!
+
+we use SetReadDeadline(time.Now().add(5 * time.Seconds))
+also remember to check for EOF which is not really an error, just a reason to close
+also remember that reading from the socket, we don't know how many are available
+add defer conn.Close()
+
+timeouts could be recoverable errors, so we could choose not to close immediately
+(e.g., we could send a keepalive test once)
+
+now lets build a simple proxy, e.g. browser -> TLS port so we can observe TLS in action
+
+so we write a func proxy() which in its body calls net.Dial(protocol, address)
+and then loops over the input, writing it to the new connection
+
+func proxy(conn net.Conn) {
+    defer conn.Close
+    remote, err := net.Dial( ... )
+    if err != nil { ... }
+    defer remote.Close
+    go io.Copy(remote, conn)       // unidirectional, so we need this twice
+    io.Copy(conn, remote)
+}
+
+oops, we started a goroutine and we didn't keep track of it
+in this case it's simple enough that closing the socket will take care of it
+
+example: all sorts of issues with TLS that we didn't actually support; but we did
+see the data get copied end-to-end
+
+go 1.11 uses Linux splice() to zero-copy move data in the kernel very quickly
+{{ NEVER use a network/web resource in your talk -- get the stuff up front and copy }}
+
+parsing TLS - because we need secure connections
+
+every message is framed, uses ASN.1
+handshake message to take care of cipher details; also includes host name
+server might serve multiple web sites, so it must return the correct certificate
+
+want a read deadline on client handskake input, else close
+read a byte buffer
+io.CopyN to read 23 bytes, since that's the known message length (tag, length[2], data[20])
+length := binary.BigEndian.Uint16(buf.Bytes()[3:5])
+we can then just copy those bytes out
+
+speaker wrote a zero-allocation ASN.1 parsing library for this
+
+* what if we want to proxy also? note that we already read some bytes of the handshake
+we need to use MultiReader to take the byte buffer we created, and then the connection
+the proxy will then read saved bytes and proceed to take bytes from the connection
+
+we need to make a net.Conn wrapper
+
+    type prefixConn struct {
+        net.Conn
+        io.Reader
+    }
+    
+    c := prefixConn{Conn: conn, Reader: io.MultiReader(&buf, conn)}
+    conn.setReadDeadline()
+    proxy(c)  // this will break
+
+we need to figure out what to read from ...
+
+    func (c prefixConn) Read(p []byte) int, err {
+        return c.Reader.Read(p)
+    }
+
+and now it won't break
+
+* what if we want to support TLS connections ourselves?
+
+tls.Conn is a net.Conn wrapper that does the work for us; it handles the handshake
+and then feeds data just as if the socket had no TLS
+
+your client will block until the handshake is done
+
+    cert, err := tls.LoadX509KeyPair(...)
+    config := &tls.Config{Certificates: []tls.Certificate{cert}}
+    tlsConn := tls.Server(c, config)
+    copyToStdErr(tlsConn) // or whatever we want to do with it ...
+
+mkcert is a tool to make locally-trusted development certificates (only your own machine)
+e.g., cert for localhost
+SEE https://github.com/FiloSottile/mkcert
+
+now you have certificates and it just works ...
+we can make a prefixConn to pass in to make a tlsConn (wrapping a wrapper ...) and proxy stuff
+
+SEE https://git.io/fAYGy
+
+============================================================================================
+
+Breakout: Allocator Wrestling
+
+The runtime is doing a lot of work for you, not only GC but even deciding when to allocate
+on the heap vs stack; allocation is syntactically opaque
+
+Allocation makes a big difference in performance; focus on allocation can return 2-3x
+improvement
+
+1. how does it work
+2. understanding allocator patterns
+3. improving memory efficiency
+
+1. allocations are either on the stack or heap
+   heap allocations are for things that "escape" the current context
+   that includes anything boxed into an interface
+
+   allocator design goals: avoid fragmentation, locks; reclaim free memory when possible
+   - fixed block size(s)
+   - local caches of blocks
+   - concurrent GC
+
+heap is arenas (64 MB chunks from the OS) and spans (>= 8 KB) within an arena
+pointer can be mapped to arena & span
+
+span of block sizes (64 B, 96 B, etc.) plus a bitmap of what's available
+about 70 size classes for objects <= 32 KB
+each scheduler context keeps one span per size class locally
+so it can be used without locking, unless we need to get a new span
+
+GC starts with goroutine stacks & globals (yuck)
+but first it must stop all non-GC goroutines before it can proceed
+mark phase - find reachable objects; follows pointers in a 3-color scheme
+sweep - free unreachable objects
+
+arena bitmap has a bitmap for which objects have pointers and where they are
+span bitmap has mark bits used during GC; at end move marked bits into alloced bits
+
+compiler must put a write barrier around all pointer copies, forcing a color update
+during GC if we're in the marking phase, so there's a charge to all pointer assgt's
+
+GC may also steal CPU from goroutines if needed to complete GC (on allocation barrier);
+during marking, goroutines get charged for allocations which figure into GC CPU usage
+
+GC work is proportional to the scannable (live) heap -- not the entire heap size some
+of which may be empty
+
+Allocating blocks of scalars is less expensive than allocating blocks of pointers due
+to the need to scan more pointers in the latter case
+
+2. tools
+
+Reducing allocations may improve performance, unless IO- or CPU-bound irrespective of
+memory usage
+
+- profile memory usage
+- three other tools: crude experiments, pprof, go tool trace
+
+for example, GOGC=off or GODEBUG=sbrk=1 disables GC or complex allocator, respectively
+so choose one or both to see if there's an actual performance difference and get a
+handle on the maximum improvement likely (big speedup -> options for improvement)
+[can't do this in production systems!]
+
+CPU profile can show time spent in allocation (runtime.mallocgc)
+it can also show time spent refilling span cache (runtime.(*mcache).nextFree)
+or GC assist (runtime.gcAssist)
+
+But your program might not be CPU-bound, or allocating on a path that's not critical
+
+Tracing will give us more detail
+curl localhost:6060/debug/pprof/...
+go tool trace ...
+
+CL 60790: minimum mutator utilization curve; see if you are GC-bound
+low utilization % means there's opportunity for improvement
+
+3. what can we change?
+    - limit pointers
+    - allocate in batches
+    - try to recycle objects internally to your program (object pools)
+
+avoid fiddling GOGC because high GOGC makes avoiding OOM harder; we don't want to try
+to use more than available memory (high GOGC means more frequent collections)
+
+better to optimize the code
+
+* avoid spurious heap allocations
+
+find escapes by compiling with -gcflags="-m -m"
+https://github.com/loov/view-annotated-file
+
+* avoid allocating objects with internal pointers (time.Time vs uint64 nano timestamps)
+  time.Time has internal location pointer for TZ
+
+* slab allocation: larger allocs are faster on a per-byte basis despite span caches
+  e.g., large string buffers in a scanner/parser instead of allocating individual strings
+
+  BUT if the slab has objects that are retained, the whole slab will be retained
+  Also, the slab may not be workable in concurrent use -- must keep local to a goroutine
+
+* object pools (sync.Pool)
+  factory class can get object from a pool, but how to we put it back when done?
+
+  example: channels between two phases of data processing, second phase must put buffer
+  back onto a channel to the first phase, which tries to read a channel before allocating
+  
+  MUST clear pool on GC to avoid growing without bound, zero recycled memory before use
+  in practice, possibly clear out the cache between user queries, e.g.
+  
+  can also keep an internal scratchpad for some types of code, such as a compressor
+
+============================================================================================
+
+Breakout: Rethinking Classical Concurrency Patterns
+
+two principles:
+- start goroutines when you have concurrent work
+- share by communicating
+
+(old?) concurrency patterns: futures & queues, condition variables
+
+concurrency != parallelism
+            != asynchronous
+            
+* an async API returns to the caller before its result is ready
+for example, Java APIs that take closures to call back when ready
+
+* futures involve returning a proxy object (or async/await) that stands
+in for the result -- blocks if you attempt to read before its ready
+
+in go, get a channel back from the call and then read on it
+it might be buffered to have a queue
+
+* some APIs force UI calls on a single thread (e.g., iOS / Cocoa)
+
+the classical benefit is to avoid idle threads, big stack frames
+
+in go, we don't have idle thread or high-level context switches
+goroutine stacks can be very small (2K to start)
+and we can avoid pointers if we really care to
+
+subtle implications of async -- not a simple thing to figure out if
+it helps
+
+* the real benefit is to initiate concurrent work, use goroutines to
+avoid complex state/event models
+
+issues with async APIs
+- cancellation/error, early reads, blocking
+- excess memory allocation
+- will we get results after cancellation? when will the channel close?
+
+avoid ambiguity
+functions shouldn't need to know whether the caller has other work to do
+
+in go, it's easy to wrap async around a sync API, but even easier to use
+a sync API and run it in a goroutine, as we saw in the net patterns
+
+hide internal concurrency within a simple synchronous API
+
+* condition variables, part of a larger class of primitives known as monitors
+  dating to the early 1970s
+
+  marking wait/signal to tell whether or not there's work to do
+  this stuff is available in go sync.Cond, but isn't the best choice
+  (note, go cond vars don't have some issues compared to pthreads)
+
+  downsides:
+  - spurious wakeups, even if only one waiter is able to complete, or wakeup a
+    waiter who isn't ready vs one that is
+  - forgotten signals, forgetting to add a signal
+  - starvation
+  - unresponsive cancellation
+
+  is there a better way to do this? condition variables use shared memory,
+  but other shared variables must be checked to see what's changed
+
+  go's approach is to share by communicating: data and signal together
+
+  examples:
+  - resource availability: put released objects onto a channel that can be read
+  - resource limits are resources too -- use a channel in place of semaphore
+  - indicate new data available for processing
+  - metadata is data too; empty channel to indicate data available, second for data
+    (waiter can consume as much as desired, put remainder back into channel)
+    (or metadata channel indicates how much data is desired to be consumed)
+
+  we can also mark transitions using a channel, e.g., busy/idle, open/closed
+  that includes using a channel only for the purpose of closing it as a signal
+  (and never actually sending data through it)
+  = events can be data, or events can be completions
+
+  note that channels can send anything, including other channels!!
+  so share things by actually communicating the things, not just info about them
+
+* worker pool pattern (not thread pool)
+
+  - make a channel to distribute tasks
+  - make a group of worker goroutines that read on that channel
+  - send work
+  - let the runtime schedule threads onto CPUs
+
+  - worker pools can limit the "work in flight" / provide flow control
+  - note that there may be a cost to keeping around the workers
+  - so we need a way to cancel workers and know that they're finished
+  - this can be done with sync.WaitGroup
+  - still may have an issue with idle workers
+  - so, start goroutines ONLY when you really have work to do NOW
+  - and let them exit when they're done working
+  - so we don't really even need to have pool of workers
+  - limit in-flight work using a channel as a semaphore ...
+    and wait for it to return all tokens
+
+  so a semaphore channel is really an "inverted" worker pool
+
+NOTE: you may need to benchmark your particulrly app to decide which patterns
+will work best; you might still need an "old style" pattern to get efficiency
+
+
+============================================================================================
+
+Computer Vision in Go with OpenCV
+
+SEE https://gocv.io
+
+Can be used to receive & process remote video, e.g., from a remote webcam
+Use go -> cgo -> c -> c++
+
+So the go app talks using go to the wrappers this project provides without needing
+any of that stuff; Linux / Mac / Windows
+
+Hundreds of filters and algorithm, plus basic stuff like getting video from a capture
+device and putting it into a window like VLC
+
+hello world example - puts video camera video into a window
+
+mat(rix) - defines how we'll process the video, e.g., 2D, color channels, etc.)
+
+example apps:
+
+1 face tracking / blurring
+
+  cascade classifier used to find the face to blur
+  it needs some type of XML input to define what it's classifying
+  the classifier will return rectangles with faces
+  we get the region for that rectangle
+  and apply a Gaussian blur to that region
+  note that the classifier he shows requires face-on image
+
+
+2. motion detection / tracking
+
+   uses background subtraction based on a Gaussian distribution
+   ID what's not changing in an image
+   need two mats: one for the image and one for the background
+   also a threshold for what is "background"
+   apply the algorithm and then feed it through the threshold
+   and then dilate to clean up the images
+   find contours and draw them
+
+3. mjpeg streaming (built into browsers)
+
+   hybridgroup/mjpeg
+
+   open the video capture again, and open an mjpeg stream
+   open up an http server and serve stream
+   
+   read the webcam and update the stream with the mjpeg encoded byte buffer
+   clients get one frame at a time
+
+
+4. object classification and tracking using a neural network and a drone
+   uses a DJI Tello drone, $99, which has a neural network chip inside
+
+   Caffe framework for deep neural networks
+   OpenCV face tracking model (single-shot multibox detector)
+
+   Gobot will control the drone
+   use ffmpeg to handle the H.264 video coming in from the drone
+   new mat from bytes
+   blob from image to 4D network
+   get detection rectangles
+   and use the 3D location of the face to control the drone to follow
+
+    demo - found the face rectangle, but the drone didn't follow properly
+

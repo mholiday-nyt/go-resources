@@ -1,0 +1,170 @@
+% 2: packages, functions, scope, closures, defer, varargs
+
+- what goes into a package
+  * multiple files
+  * normally one directory
+  * package is the unit of visibility
+  * init functions
+
+- function definitions
+  * parm lists
+  * returns
+  * named return values/naked returns
+  * short assignment allowed
+
+- scope
+  * package scope is everything OUTSIDE the {}
+  * there are no "global variables"
+  * function scope is everything within
+  * blocks within functions
+  * shadowing
+  * shadowing caused by :=
+
+- closures
+  * only occur with a function inside a function
+  * can't close over package vars per se, but it's the same
+  * how a closure sees its outside variables: by reference
+  * closing over mutating variables (loops)
+    [can we find a non-goroutine example; would need to
+     be a deferred execution of some kind? yes: store
+     some closures and evaluate them after the loop]
+
+- passing: value, reference, and value-return
+  * named return items operate like value-return
+
+- defer
+  * a mechanism for ensuring things get closed
+  * only works at function scope, so it can be
+    used inside an if-then for example
+  * defer can change named return values!
+
+- variable argument lists
+  * zero or more
+  * always the last parm in a function definition
+  * often interface{}
+  * ...z
+  * and expanding a slice with z... at the call site
+
+--------
+lesson 2 will have less new material and focus on looking
+at real code and how its put together
+
+h/w: Exercise 5.5: Implement countWordsAndImages. 
+(See Exercise 4.9 for word-splitting.)
+
+The alternative would be to use the Go parser and summarize
+some Go code; look at the source to the Stringer tool for
+how to use parsing & AST
+
+--------
+
+- static analysis tools
+  * golint / goimports
+  * go vet
+  * goconst
+  * gocyclo
+  * gosec
+  * ineffassign
+  * gometalinter -- runs the above
+  * staticcheck -- run at build time
+
+===================================================================================
+ALGOL 60 STYLE
+
+"Since ALGOL 60 had no I/O facilities, there is no portable hello world program in ALGOL"
+
+Here are a couple possible examples:
+
+BEGIN
+  FILE F(KIND=REMOTE);
+  EBCDIC ARRAY E[0:11];
+  REPLACE E BY "HELLO WORLD!";
+  WRITE(F, *, E);
+END.
+
+BEGIN
+  FILE F(KIND=REMOTE);
+  WRITE(F, <"HELLO WORLD!">);
+END.
+
+or even
+
+BEGIN DISPLAY("HELLO WORLD!") END.
+
+------------------
+
+function main()
+begin
+	function array s[0:3];
+	integer k;
+
+    k := 1;
+
+	frintf("%T %d\n", k, sizeof(k));
+
+	for i := 0 step 1 until 3 do
+    begin
+        integer j;
+
+		j := i;
+		s[i] = function()
+        begin
+            comment -- can't do this in Algol 60 because it had no
+                       I/O functions and it had no pointers!;
+
+			frintf("%d %p\n", j, &j);
+		end
+	end
+
+	for i := 0 step 1 until 3 do s[i]();
+end main
+
+==========
+
+% 3: tools, testing, structs/json, networking
+
+lesson 3 h/w goal: Exercise 4.12: 
+
+The popular web comic xkcd has a JSON interface. For example, a request to 
+https://xkcd.com/571/info.0.json produces a detailed description of comic 571, 
+one of many favorites. Download each URL (once!) and build an offline index. 
+Write a tool xkcd that, using this index, prints the URL and transcript of 
+each comic that matches a search term provided on the command line.
+
+
+#4 - methods; need a table
+
+                 variable
+            pointer    addressable     not (ephemeral)
+method
+
+pointer     OK         OK &            NOT OK
+value       OK *       OK              OK
+
+Go will autoconvert a pointer for a value method and also a
+value for a pointer method -- iff the address can be taken
+
+
+NIL INTERFACE
+see Francesc Campoy - Understanding nil
+good example - return nil *error pointer from function instead of "nil"
+or returning nil of a concrete type, later changed to error
+
+DON'T PUT NIL POINTERS INTO INTERFACES
+DON'T RETURN CONCRETE ERROR TYPES (instead of error)
+
+pointer - not much you can do
+
+also: OK to have a nil method receiver; they can be useful (do some
+default behavior for the empty case, i.e., no children in tree)
+
+nil slice: len, cap, range OK; but reference item a[k] will trap
+also OK to append to a nil slice
+
+map: len, range OK, and reading m[k], BUT NOT insert map[k]=i
+you can pass a nil map to some routine that will only READ it
+
+nil channels block on read/write, panic on close, BUT
+they will be ignored in select
+
+

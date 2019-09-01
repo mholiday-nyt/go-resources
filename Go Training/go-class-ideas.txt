@@ -1,0 +1,79 @@
+Thoughts about a Go class
+=========================
+
+Introductory material - what I presented as "Go GBU"
+- why is it
+- what's it for
+- some examples of what makes it interesting
+
+can we teach go in about 6 sessions of maybe 2 hours each, plus some homework?
+- assume students have seen the intro
+- we will repeat the concurrency stuff for one of those weeks, but maybe drill down
+  [add material on select]
+
+no book required; recommend the standard D&K text
+example programs at https://github.com/adonovan/gopl.io
+errata at https://www.gopl.io/errata.html
+solutions:
+https://github.com/vinceyuan/gopl-solutions
+https://github.com/torbiak/gopl
+https://github.com/4hel/gopl
+
+1. basics, tools, practices
+2. simple web programming
+3. DB & unit testing
+4. OO programming
+5. concurrent programming
+6. a tour of the libraries
+
+1. basics
+- how to install go in 5 mins or less, or direct folks elsewhere
+- need to cover the basic types, control structures, I/O
+- differences from C
+- need to end up with a discussion of gofmt, golint, etc. & go get
+
+The homework will involve simple programs, but more than fibonacci numbers;
+should be equivalent to basic C stuff - no explicit OO/concurrent code
+
+2. web programming
+
+The homework will involve writing HTTP servers & clients; you should be able
+to write and run both; maybe we'll have some HTTP or REST involved
+
+Better yet -- write the client to talk to a Flask service I provide; write the
+server to receive queries from some utility I provide
+
+3. DB & unit testing
+
+How to build and run UTs; let's use those to test some logic, e.g. accessing
+a DB [could include a little SQL]
+
+Actually h/w could be any kind of encoding -- for example, round-tripping a
+WAVE file and/or also playing it
+
+How about write the s/w to add the header to some wave data and then play it?
+
+4. OO programming
+
+Really about interfaces and implementations, perhaps with some composition
+
+What kind of exercise can we use?
+
+5. Concurrency
+
+ - redo the concurrency examples
+ - add some examples with select blocks
+
+h/w - write a tool to concurrently search the web? but there are too many examples
+
+what about re-writing the file search stuff WITHOUT using channels ...
+
+6. look at some of the libraries, e.g. crypto
+
+h/w could we use ASN.1 to parse some old TCAP ??
+what about reading & processing CSV files; generate some statistics
+
+7. really advanced stuff -- write a tool that reads .go files, looks for
+structs with JSON tags, and generates API documentation ...
+
+https://speakerdeck.com/farslan/building-a-go-tool-to-modify-struct-tags

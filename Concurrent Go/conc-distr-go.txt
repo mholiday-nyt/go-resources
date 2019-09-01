@@ -1,0 +1,229 @@
+Concurrent & distributed programming with Go
+
+pretty much everything now is one or both
+you have to think a bit to identify non-distributed stuff
+(microwaves, pacemakers - but don't put them together)
+
+concurrency vs parallelism
+
+"Concurrency is not parallelism, although it enables parallelism.
+If you have only one processor, your program can still be concurrent but it cannot be parallel.
+On the other hand, a well-written concurrent program might run efficiently in parallel on a multiprocessor."
+[Rob Pike]
+
+Concurrency in Go [from Pike's slides]
+
+What is a goroutine? It's an independently executing function, launched by a go statement.
+It has its own call stack, which grows and shrinks as required.
+It's very cheap. It's practical to have thousands, even hundreds of thousands of goroutines.
+It's not a thread.
+There might be only one thread in a program with thousands of goroutines.
+Instead, goroutines are multiplexed dynamically onto threads as needed to keep all the goroutines running.
+When a goroutine blocks, that thread blocks but no other goroutine blocks.
+
+"Don't communicate by sharing memory, share memory by communicating."
+
+Ian Lance Taylor said, "In practice there are two kinds of pointers programs send
+on channels: pointers which transfer ownership of mutable data, and pointers which
+point to shared immutable data."
+
+==> let's keep it that way, because anything else is likely to be a food fight
+
+===========================================================================
+
+distributed system
+
+"A distributed system is a system where I can’t get my work done
+because a computer has failed that I’ve never even heard of."
+[Lamport]
+
+Colouris:
+- a system in which processes coordinate only by sending messages
+
+Herscheid/Tröger
+“A distributed system is a collection of independent computers that 
+appears to its users as a single coherent system”
+
+Berglund:
+- concurrent [and parallel] processing
+- independent failure
+- no global clock
+
+===========================================================================
+
+FLP theorem - impossibility of consensus in an asynchronous system
+with one faulty process (can't differentiate between late and failed)
+(fixed by using timeouts to make it quasi-asynchronous)
+
+Fischer, M. J., Lynch, N.A., Patterson, M.S. 1985.
+Impossibility of distributed consensus with one faulty process.
+Journal of the ACM 32(2): 374-382
+
+===========================================================================
+
+CAP theorem
+- consistency [strong; describe eventual]
+- availability
+- partition-tolerance
+
+Seth Gilbert and Nancy Lynch,
+"Brewer's conjecture and the feasibility of consistent, available,
+partition-tolerant web services",
+ACM SIGACT News 33:2 (June 2002), pp. 51–59
+
+pick any two, but in the real world one of them must be
+partition-tolerance since we have no failure-proof stuff
+
+which do you pick, C or A? that depends on your app
+- consistency when dealing with money or other things we can't lose
+  (or even feel we might lose)
+- availability when eventual consistency (or none!) is OK
+  [phone switch can throw away calls but remain available]
+
+the cost of choosing consistency means that you will have latency
+in a normal system because it must replicate data
+
+you can still make choices about consistency and availability even
+with a partition -- how many failures can you tolerate?
+
+primary could service without a secondary, but at the risk that a
+second failure causes loss of consistency -- which may be cheaper
+than denying availability or incurring additional latency (persist
+everything to disk [sync] on each transaction - very expensive)
+
+"As the "CAP Confusion" sidebar explains, the "2 of 3" view is misleading 
+on several fronts. First, because partitions are rare, there is little 
+reason to forfeit C or A when the system is not partitioned. Second, the 
+choice between C and A can occur many times within the same system at 
+very fine granularity; not only can subsystems make different choices, 
+but the choice can change according to the operation or even the specific 
+data or user involved."
+
+"Operationally, the essence of CAP takes place during a timeout, a period 
+when the program must make a fundamental decision-the partition decision:
+- cancel the operation and thus decrease availability, or
+- proceed with the operation and thus risk inconsistency."
+[Brewer 2012]
+
+Eric Brewer
+"CAP Twelve Years Later: How the 'Rules' Have Changed"
+IEEE Computer 45:2, Feb. 2012, pp 23-29
+
+see also
+
+Daniel Abadi
+"Consistency Tradeoffs in Modern Distributed Database System Design"
+IEEE Computer 45:2, Feb. 2012, pp 37-42
+
+Seth Gilbert & Nancy Lynch
+"Perspectives on the CAP Theorem"
+IEEE Computer 45:2, Feb. 2012, pp 30-36
+
+===========================================================================
+
+happens-before
+- this is an operator over two events
+- it's transitive but not associative or reflexive
+- it leads to a partial ordering on events in the system
+  
+  An event e happens-before another event f (denoted e → f) if one of the
+  following cases is true:
+  - e and f happen on the some process, such that e has an earlier time
+  by the processor’s internal clock
+  - e is the send of a message from one process to another, and f is the
+  receipt of the message
+
+Can be used to build a total order (⇒)
+• Use an arbitrary total ordering of the processes ≺
+• a ⇒ 𝑏, if 𝐶 𝑎 < 𝐶 𝑏 or 𝐶 𝑎 = 𝐶 𝑏 ∧ 𝑃 ≺ 𝑃
+
+Lamport's logical clock
+- we number things
+- show how that creates happens-before in a distributed system
+
+Lamport’s clock is a single integer denoting an event count. Each process
+keeps its own event count and sends it on all messages as follows:
+1. a process increments its event count for each internal event
+2. on each message send, a process increments its internal event and sends
+   that value piggybacked on the message
+3. on each message receive, a process takes the maximum of its local event
+   count, and the count piggybacked on the message, and then increments that value
+
+By default, event counts start at 0 and increment by 1. Note that incrementing
+for local events is not strictly necessary, since they’re not visible to any
+other process. Also, for a broadcast message, all copies may bear the same
+event count.
+
+Lamport’s clock guarantees e -> f implies C(e) < C(f)
+(but the reverse IS NOT true; C(e) >= C(f) implies e "not before" f
+
+Lamport, Leslie. "Time, clocks, and the ordering of events in a distributed
+system." Communications of the ACM 21.7 (1978): 558-565.
+
+--------------
+
+we can use "clock" values in lots of ways
+- describe view # in viewstamped replication
+  (messages from the past - discard; messages from the future - queue)
+- describe incarnations of individual processes (e.g., SolidFire)
+
+there are also vector clocks (useful in some algorithms) and matrix clocks
+(ridiculously expensive and so not very practical; the values must be in
+the message)
+
+Go has happens-before relations:
+- send on a channel happens before receive
+- lock of a mutex (and critical section) happens before unlock
+  (extends down the the processor with locked instructions & caches)
+  [which we'll talk about later]
+
+[from Go Memory Model ]
+ 1. Within a single goroutine, the happens-before order is the order expressed by the program.
+ 
+ "The execution order observed by one goroutine may differ from the order
+  perceived by another. For example, if one goroutine executes a = 1; b = 2;
+  another might observe the updated value of b before the updated value of a."
+
+ 2. If a package p imports package q, the completion of q's init functions happens before the start of any of p's.
+ 3. The go statement that starts a new goroutine happens before the goroutine's execution begins.
+ 4. A send on a channel happens before the corresponding receive from that channel completes.
+ 5. The closing of a channel happens before a receive that returns a zero value because the channel is closed.
+ 6. A receive from an unbuffered channel happens before the send on that channel completes.
+ 7. The kth receive on a channel with capacity C happens before the k+Cth send from that channel completes.
+ 8. For any sync.Mutex or sync.RWMutex variable l and n < m, call n of l.Unlock() happens before call m of l.Lock() returns.
+ 9. For any call to l.RLock on a sync.RWMutex variable l, there is an n such that the l.RLock happens (returns) after call n to l.Unlock and the matching l.RUnlock happens before call n+1 to l.Lock.
+10. A single call of f() from once.Do(f) happens (returns) before any call of once.Do(f) returns.
+
+also in Go Memory Model:
+
+"If you must read the rest of this document to understand the behavior of
+your program, you are being too clever."
+
+Noted elsewhere,
+"The Go compiler won't re-order atomic operations and atomic store
+is implemented using XCHG on amd64" but this is subject to change.
+
+===========================================================================
+
+Why is it hard?
+
+The Eight Fallacies of Distributed Computing by Peter Deutsch
+
+Essentially everyone, when they first build a distributed application, makes
+the following eight assumptions. All prove to be false in the long run and
+all cause big trouble and painful learning experiences:
+1.	The network is reliable
+2.	Latency is zero
+3.	Bandwidth is infinite
+4.	The network is secure
+5.	Topology doesn't change
+6.	There is one administrator
+7.	Transport cost is zero
+8.	The network is homogeneous
+
+===========================================================================
+
+"Go is an attempt to combine the ease of programming of an interpreted,
+dynamically typed language with the efficency and safety of a statically
+typed, compiled language" [Pramesti Hatta K, Golang 101 (Concurrency vs Parallelism)
+https://www.slideshare.net/PramestiHattaK/golang-101-concurrency-vs-parallelism]
