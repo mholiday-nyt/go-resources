@@ -1,0 +1,4 @@
+items 6 & 7 are "verbatim-like" environments for go & python code
+
+copy these two items from the old LaTeX.plist over into 
+/Library/Application\ Support/TextMate/Managed/Bundles/LaTeX.tmbundle/Syntaxes/LaTeX.plist
