@@ -1,0 +1,1542 @@
+Learn to Program with Go
+https://imthenachoman.github.io/nGitHubTOC/
+
+==========================================================================
+
+- introduction
+- math & operators
+- variables & assignment
+- strings, basic formatted I/O
+- if/then, block structure
+- loops, command-line args
+- slices & indexing & conversions
+- strings vs runes
+- length vs capacity, append
+- maps, make operator
+
+- functions & scope
+- packages
+- closures
+- structs & JSON
+- pointers & memory
+- methods
+- interfaces
+- struct & interface composition (?)
+
+- file I/O & error handling
+- basic web client/server
+
+- goroutines & concurrency
+- channels
+- atomics
+
+- web server templates
+- REST API
+
+- checking programs
+- testing programs
+- building programs
+- modules & vendoring (?)
+
+==========================================================================
+
+Preface - Why Go?
+
+Try to explain the basics without depending on lots of CS knowledge
+- designed for the web/cloud
+- simple language: make programming easier
+- fast; take advantage of modern h/w
+- supports object-oriented & concurrent programming models
+  [need concurrency because CPUs are now multi-core]
+
+1. Intro
+
+1.1. What Is Programming?
+
+- not a guide to performers (as at a concert)
+- not a degree plan (as in a program of study at college)
+
+it's about problem solving
+
+specifically, solving a problem using a computer
+
+which means we have another problem: writing instructions
+in a computer programming language to communicate the way
+to solve the problem
+
+for us it's a sequence of steps or instructions to achieve
+a result:
+
+Q: how to get to the train station
+A: go down three blocks, turn left, and it's two more 
+   blocks on the right
+
+we can't give the computer instructions in English or another
+human language
+
+computers only understand numbers; we need another level of
+abstraction
+
+so we create programming languages; regular enough for a
+computer to translate into machine code
+
+compilers vs interpreters: look at Gries book for illustrations
+
+- languages like Python and Ruby are interpreted
+
+  the interpreter must translate the program every time
+  these languages also abstract away from the real machine
+  so they tend to be 10x slower than a compiled language
+
+- Go is compiled: we run a program to translate to machine code
+
+  we only need to compile when the program is changed
+  otherwise we can just run the program over & over
+
+  Go is designed with less abstraction from the machine, such
+  as how numbers are represented, making it faster
+
+1.2. Programs & Bugs
+
+unfortunately, we run into a couple of problems
+
+- computers only do what they're told
+- what you think you told the computer may not be what
+  the computer "thinks" you told it
+- so it's necessary to think in a clear and disciplined
+  way when writing a program -- use logic
+
+computer languages are somewhat limited so that we can
+effectively translate them to what the machine can run
+
+they're not intuitive (enough) -- we have to develop a
+new intuition about computers & programming
+
+when we make a mistake in a program, it's called a "bug"
+[refer to the old story]
+
+in a language like Go, there are a couple types of bugs:
+- those found when compiling
+
+  the "compiler" translates our program to machine code
+  and can check for violations of language rules -- this
+  saves lots of time
+  
+  we get a compiler error showing the line & reason
+
+- those found when the program runs
+
+  unfortunately, no compiler can find all the bugs; some
+  only happen at runtime
+
+  some of these bugs will cause the program to crash;
+  we get a traceback which helps us identify the line
+  & reason -- but we may still have to think about the
+  program = "debugging"
+
+  some types of errors result in an error that we can
+  check for and write program logic to handle
+  
+  and a few -- the worst kind -- silently give us bad
+  results; so we write tests to help us check that we
+  got the results we expect
+
+one of the reasons Go is a good language is that between
+the compiler and other tools, we can find lots of possible
+bugs through "static analysis" before the program ever
+runs
+
+(it's impossible for the compiler or other tools to find
+ALL the bugs ...)
+
+Go also provides tools to help us write and execute tests
+
+1.3. A Few Notes About Go Code
+
+a) basic program structure
+
+   package main
+   import "fmt"
+   
+   func main() {
+       fmt.Println("Hello, world!")
+   }
+
+b) funny characters
+
+   ()  parentheses (one of them by itself is a parenthesis)
+   []  square brackets
+   {}  curly braces
+   ""  double quotes
+
+   they're all required, and correct placement is required
+
+c) line length doesn't matter, but the compiler has rules
+   about where you can break lines
+
+   we will try to keep statements to one line without breaks
+
+   otherwise, we'll let the tools (e.g, gofmt) handle formatting
+
+d) the playground
+
+e) installing Go and running it on the command line (not required
+   in the very beginning)
+
+
+2. Simple Programs
+
+2.1 Numbers (Types) and Expressions
+
+numbers in Go take one of two forms: integers and "real" numbers
+
+for example, 1, 4, 9 are integers; 3.1416 and 2.7183 are real
+numbers (pi and e)
+
+Go supports the usual mathematical operators on numbers, but
+there's a twist: integer division produces an integer result
+that's rounded down
+
+    func main() {
+        fmt.Println(1/3)
+    }
+
+if we want a real result, we need to use real numbers that have
+a decimal point
+
+    func main() {
+        fmt.Println(1.0/3.0)
+    }
+
+more examples of expressions:
+
+  1+1
+  1*3
+  3-1
+  
+  1*(4-2)+3
+
+there's also a "mod" operator that may be less well-known; it
+returns the part "left over" when dividing integers
+
+  1%3 is 1
+  2%3 is 2
+  3%3 is 0
+  4%3 is 1
+  5%3 is 2
+  6%3 is 0
+
+and so on; x % y always returns a value between 0 and y-1
+
+unlike normal life, this operation is very useful in programming!
+
+2.2 Variables
+
+when performing math, for example, we often need to store a
+(partial) result by giving it a name
+
+in Go, we can do that with a special operator :=
+
+   i := 1
+   j := 3
+   k := i%k
+
+now if we look at k, we'll see it's also 1
+
+every variable has a type, often inferred for us by the compiler
+
+the type of i, j, k is "int"
+
+why? 1 and 3 are integers (int) by default, unless we specify
+somthing else
+
+and k is too because it was calculated from x and y
+
+by "type" we mean a concept in two parts:
+- a set of values
+- a set of operations that can be performed on those values
+
+int has values ... -2, -1, 0, 1, 2, 3 and so on -- whole numbers
+
+but it's not infinite; it's limited to some precision determined
+by the machine we're running on
+
+typical laptop now: 64 bits, so very large numbers (approx 10^19)
+raspberri pi:       32 bits, so numbers around 10^9
+
+for now, we'll ignore these details
+
+what about this variable?
+
+    x := 3.14
+
+that's not an integer; it has a "real" type, but Go doesn't
+have a generic real
+
+we have to talk about float32 or float64 types and make the
+precision explicit [we'll use float64 all the time for now]
+
+in general, we can't mix integer and real numbers without 
+explicitly "casting" one to the other
+
+WRONG (compiler error)
+
+    func main() {
+        n := 1
+        x := 3.0
+        fmt.Println(n/x)
+    }
+
+    ./prog.go:10:18: invalid operation: n / x (mismatched types int and float64)
+
+
+RIGHT
+
+    func main() {
+        n := 1
+        x := 3.0
+        fmt.Println(float64(n)/x)
+    }
+
+we can also get a runtime error from math operations:
+
+PANIC
+
+    func main() {
+        x := 3
+        y := 0
+        fmt.Println(x/y)
+    }
+
+    panic: runtime error: integer divide by zero
+
+    goroutine 1 [running]:
+    main.main()
+    	/tmp/sandbox948628631/prog.go:10 +0x20
+
+
+2.2.1 Variable names
+
+variable names (and other "identifiers") in a Go program must
+start with a letter and contain letters, numbers, and maybe the
+underscore ("_") [but that's not good form]
+
+there are also some names you can't use: those are the keywords
+defined by the Go programming language (they have only one possible
+meaning in Go)
+
+25 keywords:
+
+    break        default      func         interface    select
+    case         defer        go           map          struct
+    chan         else         goto         package      switch
+    const        fallthrough  if           range        type
+    continue     for          import       return       var
+
+there are some names you shouldn't use: those are the reserved
+identifiers in Go (they already have another meaning, but they
+can be overridden)
+
+some built-in functions, constants, etc.; some expected but not
+pre-declared, e.g. "main"
+
+    Types:
+    	bool byte complex64 complex128 error float32 float64
+    	int int8 int16 int32 int64 rune string
+    	uint uint8 uint16 uint32 uint64 uintptr
+
+    Constants:
+    	true false iota
+
+    Zero value:
+    	nil
+
+    Functions:
+    	append cap close complex copy delete imag len
+    	make new panic print println real recover
+
+
+2.3 Assignment
+
+the name "variable" implies that we can change them
+
+    func main() {
+        x := 1.0
+        x = x/3
+        fmt.Println(x)
+    }
+
+here the operator "=" changes the value of a variable
+
+NOTE - this is NOT how we check for equality; we'll
+see another operator for this shortly
+
+the code
+
+    x = <expression>
+
+is an assignment statement, where a "statement" is a
+basic unit of a program
+
+when we speak of assignment, there's a left-hand side
+and right-hand side
+
+what's on the left-hand side must be a variable; that
+is, something whose value can be changed
+
+we can't say
+
+    2 = x
+
+because the value "2" can't be changed
+
+we call "2" in a program a "literal", i.e., a value
+which is literally spelled out in the program; here
+"2" is a numeric literal
+
+"Hello, world!" was also a literal -- a string literal
+(strings are another type of data)
+
+we'll see some other literals later on
+
+numeric literals have flexible type interpretations
+
+    2       int
+    2.0     real
+
+but we're allowed to combine numeric literals with
+variables of different types
+
+    x := 3.0        // real
+    y := 1/x        // still real; 1 interpreted as 1.0
+
+2.4 Constants
+
+sometimes we want to give a name to some value or
+expression that we don't want to change when the program
+runs
+
+Go allows two kinds of constants: numbers and strings,
+that is, the same as two kinds of literals
+
+we have to use the "const" keyword to introduce a
+constant
+
+    const pi = 3.1416
+
+again, Go can infer the correct type by the format of the
+literal, here a real number
+
+we cannot write
+
+    pi = 2.7183
+
+    ./prog.go:9:8: cannot assign to pi
+
+because we declared it to be constant
+
+if we need several constants we can use another notation
+
+    const (
+        pi = 3.1416
+        e  = 2.7183
+    )
+
+2.5 Declarations
+
+we've already seen one way to declare a variable using what's
+known as the "short declaration" using :=
+
+there's also a keyword to introduce a variable
+
+    var x = 3.0
+
+why do we have it? because sometimes we want to name a variable
+without explicitly initializing it with a value:
+
+    var x int
+
+where we must explicitly name the type of the variable because
+we didn't give it an initial value
+
+what value will it have?
+
+all numeric variables are by default initialized to 0 (or 0.0
+in the case of a float64)
+
+we'll see some other built-in types later which will have other
+defaults
+
+So - there are NO unitialized variables (or constants) in a Go
+program -- which is very handy, it prevents lots of errors that
+we sometimes get in other programming languages where un-
+initialized variables may get a RANDOM value at runtime!
+
+2.6 Operator Precedence
+
+when we right math expressions, how does the compiler know what
+order to apply the operators
+
+intuitively, when we write
+
+    3 * 3 + 1
+
+we expect that the multiplication happens first, giving us 10
+
+that is, multiplication binds more tightly than addition and
+must be done first
+
+if we want another order, we must use parentheses:
+
+    3 * (3 + 1)
+    
+which of course yields 12
+
+in Go, there are several levels of operator precedence, but we
+haven't yet introduced all the operators
+
+the operators "like" multiplication (*, /, %) have a higher
+precendence over those like addition (+, -)
+
+when in doubt, always use explicit parentheses to group parts
+of an expression to make the program easier to read
+
+we can also put a "comment" line in the code to explain what
+we're doing
+
+a comment is any text starting with "//" and extending to the
+end of the line
+
+    // this is a comment
+    
+    x := 1.7321     // and so is this
+
+2.7 Input/Output & Packages & Stuff
+
+we've already seen some examples of output using "fmt"
+
+every Go program must have a main() function which must be
+in the package main
+
+anything we need from another package must be imported into
+the current source file
+
+    import "fmt"
+
+which gives us access to various utilities for formatted
+input and output
+
+we can print with
+
+    fmt.Println()
+
+which always prints a return / newline at the end of the line;
+if we use
+
+    fmt.Print()
+
+it doesn't end the line
+
+    func main() {
+        fmt.Print("x", "y")
+    	fmt.Println("z")
+    }
+
+prints "xyz" and then a newline; notice fmt.Print() also
+didn't add any spaces for us as fmt.Println() does
+
+we can also read from standard input (on the console; we can't
+do input on the playground, unfortunately)
+
+reads the next integer (if possible)
+
+    func main() {
+        var x int
+    
+        fmt.Scan(&x)
+        fmt.Println("squared:", x * x)
+    }
+
+$ go run main.go
+12                 ## waits for you to type
+squared: 144
+
+OK, what is that "&x" thing?
+
+Sometimes we need to let the function we're calling change
+the variable we're passing in -- we want fmt.Scan to store
+a value into x
+
+so we pass the "address" of x using the operator "&" that
+we'll talk more about later; for now just take it as is
+
+
+3. Functions
+
+a "function" refers to a group of statements that we've
+named; it has the property that it can be "called"
+
+we've been using several functions without talking about
+them
+
+    fmt.Println()
+    fmt.Scan()
+
+and of course the main() function that starts off our program
+
+functions can take "arguments" -- values that we pass in so
+that the function can use them
+
+for example, our printing functions can take arguments that
+end up being printed in some formatted way
+
+we can also write functions of our own
+
+why do that?
+
+suppose there's some calculations we need to do over and
+over; we don't want to repeat the code (DRY)
+
+also, if we have too much code in a program all in one very
+large main() function, it may be hard to read
+
+so we can group pieces of code into functions that we can
+understand on their own
+
+for now, we'll assume one great simplifying thing: a function
+can only operate on values that get passed in as arguments
+
+let's do some temperature calculations
+
+    func c2f(c float64) float64 {
+        return c*9/5+32
+    }
+
+we say here that "c2f" is the name of a function that takes
+one float64 argument named "c" and returns a float64 value
+as its result
+
+again, we don't need to case numeric literals to be float64
+
+so now we can write
+
+    func main() {
+        x := 0.0
+        fmt.Println(c2f(x))
+    }
+
+which prints 32 as expected
+
+so now we can write a complete program to convert:
+
+    func main() {
+        var x float64
+
+        fmt.Print("Enter a temp in celsius: ")
+        fmt.Scan(&x)
+        fmt.Println("that's", c2f(x), "in fahrenheit")
+    }
+    
+$ go run main.go
+Enter a temp in celsius: 0
+that's 32 in fahrenheit
+
+$ go run main.go
+Enter a temp in celsius: 37
+that's 98.6 in fahrenheit
+
+$ go run main.go
+Enter a temp in celsius: 100
+that's 212 in fahrenheit
+
+note that the return we typed in response to the prompt
+completed that line on the console, so the rest of the
+text appeared on the next line
+
+3.1 Local variables & scope
+
+We could also have written our conversion function as
+
+    func c2f(c float64) float64 {
+        f := c*9/5+32
+        return f
+    }
+
+where "f" is a local variable
+
+"local" here means that "f" can only be seen within
+the function c2f
+
+similarly, "c" can be treated as a local variable
+
+"c" is known as a "formal parameter" of the function
+and it receives a *copy* of whatever value is passed
+to the function as the "actual" parameter
+
+in other words, in
+
+    c := 21
+    f := c2f(c)
+
+"c" here is independent of the "c" inside c2f and
+so is "f"
+
+in fact, let's write c2f another way
+
+    func c2f(c float64) float64 {
+        c := c*9/5+32
+        return c
+    }
+
+we can do this because the parameter c is a copy
+and in
+
+    c := 21
+    f := c2f(c)
+
+the "c" that we set to 21 doesn't change
+
+that's why we could also just write
+
+    f := c2f(21)
+    
+because we can copy 21 into the parameter "c" so
+the actual parameter can be a literal
+
+that doesn't work with fmt.Scan() because the scan
+function needs to update the variable passed in 
+as the actual parameter
+
+let's look at scope another way
+
+    package main
+    import "fmt"
+    
+    func c2f(c float64) float64 {
+        f := c*9/5+32
+        return f
+    }
+
+    func main() {
+        var x float64
+
+        fmt.Print("Enter a temp in celsius: ")
+        fmt.Scan(&x)
+        fmt.Println("that's", c2f(x), "in fahrenheit")
+    }
+
+can the main function access "c" or "f" from c2f?
+no -- "c" and "f" are only visible inside c2f
+
+similarly, c2f doesn't "see" the variable "x" that is
+declared inside main
+
+"scope" works like Russian kachina dolls -- we can nest
+one scope inside another
+
+package main is a scope; contained in it are the scopes
+of the two functions, main and c2f
+
+so we could do this:
+
+    package main
+    import "fmt"
+    
+    var x float64
+
+    func c2f() float64 {
+        return x*9/5+32
+    }
+
+    func main() {
+        fmt.Print("Enter a temp in celsius: ")
+        fmt.Scan(&x)
+        fmt.Println("that's", c2f(), "in fahrenheit")
+    }
+
+where instead of passing "x" to the function as an
+argument, we declare it in a scope outside both
+functions
+
+in general, we get a scope for each package (we've only
+seen programs with one package of our own, but they all
+involve another package "fmt"), AND we get a scope for
+each function (inside its curly braces {})
+
+however, this is not good design, based on a design
+criteria that include "information hiding"
+
+when we limit variables (really, access to variables)
+only to where they're needed -- the tightest scope --
+we make the program
+
+- easier to read
+- more safe from possible errors
+
+it's hard to see in this small example, but putting
+"x" at a higher scope than necessary leaves it open
+to being changed by other code (maybe we have more
+functions in our program ...)
+
+3.3 Return values
+
+we defined our function c2f to return a single value
+(the converted temp)
+
+not all functions have return values
+
+let's re-write our program in another way:
+
+    package main
+    import "fmt"
+
+    func c2f(c float64) {
+        fmt.Println("that's", x*9/5+32, "in fahrenheit")
+    }
+
+    func main() {
+        var x float64
+
+        fmt.Print("Enter a temp in celsius: ")
+        fmt.Scan(&x)
+        c2f(x)
+    }
+
+instead of returning a value, now c2f prints it for us
+
+this is also not good design; c2f is more reusable if we
+keep it to a single purpose (the conversion) and not have
+it be involved in the input/output
+
+we might want to use c2f in some other context, such as
+in a web app where we don't print to the console
+
+3.4 Functions redux
+
+We'll talk more about functions later, but for the moment
+let's recap
+
+- we want functions in order to break out reusable code
+- we can also make the program more readable that way
+- we want functions to have a single clear purpose
+- we want to hide information inside functions as much
+  as we can -- we limit the scope of errors when we limit
+  the scope of variables - think about this providing 
+  watertight bulkheads for safety
+
+3.5 Enumerations
+
+sometimes we need to define a set of constants; for example, we'd
+like to represent the days of the week
+
+we're going to see two tricks here:
+
+    type weekday int
+
+    const (
+        monday = iota
+        tuesday
+        wednesday
+        thursday
+        friday
+        saturday
+        sunday
+        maxDays
+    )
+
+here "weekday" will be represented as an integer (a whole number)
+but it's a "named type" -- it will be distinct from other ints
+
+    var x int
+    x = monday   // COMPILE ERROR
+
+because monday is a weekday and not an int any more except in how
+it's represented
+
+"iota" is a special operator that takes on the values 0, 1, 2 in
+a constact block as above
+
+so monday is represented by 0, tuesday by 1, etc.
+
+let's do some weekday calculations:
+
+    func next(w weekday, i int) weekday {
+    	return (w + weekday(i)) % maxDays
+    }
+
+    func main() {
+    	var d weekday = wednesday
+
+    	fmt.Println(d, ",", next(d, 2))
+    	fmt.Println(d, ",", next(d, 6))
+    }
+
+which outputs "2 , 4" and "2 , 1" respectively
+
+note we had to turn "i" to a weekday to combine it with the
+argument "w"
+
+also note we created a constant "maxDays" to use with the
+mod (%) operator -- since we need to know how many days
+make up a week
+
+the output we're getting here isn't very readable: we have
+to look up the values 0, 1, ... to figure out what days
+they represent
+
+we'll see how to do that better in a bit, but we need more
+tools first
+
+4. Program logic
+
+so far, all our little functions and programs have used only
+one type of structure -- we execute the statements in the
+order presented (sequentially)
+
+we haven't been able to make any decisions, but that will
+change
+
+an if - then - else structure allows us to pick one of two
+alternatives based on some condition
+
+4.1 Conditions
+
+first, we need to be able to check conditions, and to do that
+we need a new set of operators
+
+let's start with equality, which is the "==" operator
+
+    0 == 0 is true
+    1 == 0 is false
+
+i.e.
+
+    main() {
+        fmt.Println(1 == 0)
+    }
+
+true and false are the elements of the "bool" type, and the
+result of all comparison operators
+
+there are some more comparisons; next up is "not equals" which
+is represented by the operator "!="
+
+    0 != 0 is false
+    1 != 0 is true
+
+not suprisingly, it's the opposite result as "=="
+
+the bool type itself has operations in addition to the two values
+true, false
+
+the first of these is negation, written as a unary "!"; so
+
+    !(1 == 0) is true, same as 1 != 0
+
+in fact, we could generalize
+
+    !(x == y) == (x != y)
+
+for any variables x, y that we can compare
+
+OK, so what can we compare? for now, numbers, but as usual we may
+need to ensure they're of the correct type
+
+    x := 0
+    y := 1.0
+    
+    fmt.Println(x == y)
+
+doesn't work (compiler error, which is what we expect), because
+we can't combine an int and a float64 together without casting
+one of them
+
+    x := 0.0
+    y := 1.0
+    
+    fmt.Println(x == y)
+
+this works, as does
+
+    x := 0
+    y := 1.0
+    
+    fmt.Println(x == int(y))
+
+where both return false
+
+in addition to equals/not equals, we have some other comparison
+operators
+
+    <   less than
+    <=  less than or equal to
+    
+    >   greater than
+    >=  greater than or equal to
+
+4.2 Boolean expressions
+
+we just saw that the bool type has an operator "!" (negation or "not")
+
+this operator applies only to bool values/variables
+
+    main() {
+        x := 2
+        fmt.Println(!x)
+    }
+ 
+will give a compile error (as expected) because "x" is an int, not a bool;
+instead we could write
+
+    main() {
+        b := true
+        fmt.Println(!b)
+    }
+
+which outputs "false"
+
+there are two more operators on the bool type, and (&&) and or (&&) which
+provide the basics of boolean logic
+
+    a && b  // true if both a and b are true
+    a || b  // true if one of a or b is true (or both)
+
+both of these operators are known as "shortcut" operators -- if the result
+can be determined by evaluating the first part (here "a"), there's no need
+to evaluate the other part ("b")
+
+for example
+
+    a := true
+    b := false
+    
+then
+
+    a || b
+    
+is true because a is true, and the value of b doesn't matter
+
+similarly, with
+
+    a := false
+    b := true
+
+then
+
+    a && b
+
+if false because a is false, and again the value of b doesn't matter
+
+for now, this is a detail, but it will become important later; often
+we want to write a "guard" using && and deliberately not evaluate the
+second part if the first part is false
+
+4.3 More precedence
+
+OK, so we had two levels of operator precedence before, with *, /, %
+binding more tightly than +, -
+
+we know have SIX levels of precedence
+
+Precedence    Operator
+    6             ! (unary)
+    5             *  /  %
+    4             +  -
+    3             ==  !=  <  <=  >  >=
+    2             &&
+    1             ||
+
+unary operators bind most tightly to what is immediately to their
+right
+
+this !x || y is always (!x) || y
+
+it also means we can write comparisons more naturally without parens
+
+for example
+
+    x + y < 0               // always (x + y) < 0
+
+    x != 0 && x != y
+    
+    a && b || c && d        // always (a && b) || (c && d)
+
+except that in this latter example it's probably clearer to keep the ()
+
+
+4.4 if statements
+
+ok, now we're going to give a really trivial example
+
+    func min(x, y int) int {
+        if x < y {
+            return x
+        }
+        
+        return y
+    }
+
+this should be intuitive: if x is less than y, return it, otherwise
+return y
+
+it works because if x == y then we can return either value arbitrarily
+
+note that we introduced another pair of {} here -- they are required
+
+the following is WRONG and will not compile
+
+    func bad(x, y int) int {
+        if x < y
+            return x
+
+        return y
+    }
+
+even though the body of the "if" statement is only one line
+
+since we have a pair of curly braces, we might wonder if we get another
+variable scope -- YES, we do
+
+we could also have written this function with an "else" clause
+
+    func min(x, y int) int {
+        if x < y {
+            return x
+        } else {
+            return y
+        }
+    }
+
+which is syntactically correct but not the best style
+
+Go enforces where the curly braces go; for example
+
+    func min(x, y int) int {
+        if x < y {
+            return x
+        }
+        else {
+            return y
+        }
+    }
+
+is NOT ALLOWED; NOR is
+
+    func min(x, y int) int {
+        if x < y
+        {
+            return x
+        }
+        else 
+        {
+            return y
+        }
+    }
+    
+[technically, this has to do with the fact that Go code omits
+the semicolons ";" that other languages use (it infers them);
+but the way this works was designed to enforce a particular
+brace style (in the compiler) to end lots of arguments about
+how to write the code]
+
+4.5 Happy path on the left
+
+we prefer this style
+
+    func min(x, y int) int {
+        if x < y {
+            return x
+        }
+        
+        return y
+    }
+
+because it reduces the amound of indentation; compare
+
+    func min(x, y, z int) int {
+        if x < y && x < z {
+            return x
+        }
+        
+        if y < x && y < z {
+            return y
+        }
+        
+        return z
+    }
+
+with
+
+    func min(x, y, z int) int {
+        if x < y && x < z {
+            return x
+        } else {
+            if y < x && y < z {
+                return y
+            } else {
+                return z
+            }
+        }        
+    }
+
+although in all fairness Go allows us to write
+
+    func min(x, y, z int) int {
+        if x < y && x < z {
+            return x
+        } else if y < x && y < z {
+            return y
+        } else {
+            return z
+        }        
+    }
+
+in many cases, these "if" statements are guarding
+against "early out" conditions
+
+and we want to keep the normal path to the left
+
+    func positiveReciprocal(x float) float {
+        if x == 0 {
+            return 0  // not necessarily correct; no panic
+        }
+        
+        if x < 0 {
+            x = -x
+        }
+        
+        return 1/x
+    }
+
+4.6 Returning errors
+
+our last function could be better written this way, returning TWO
+values
+
+    func positiveReciprocal(x float) (float, error) {
+        if x == 0 {
+            return 0, fmt.Errorf("divide by zero")
+        }
+        
+        if x < 0 {
+            x = -x
+        }
+        
+        return 1/x, nil
+    }
+
+where "nil" is a special value that means "no error" in this case
+
+and then we could call it
+
+    main() {
+        var x float
+
+        fmt.Print("enter a number:")
+        fmt.Scan(&x)
+
+        y, err := positiveReciprocal(x)
+
+        if err != nil {
+            fmt.Println("error:", err)
+        } else {
+            fmt.Println("result:", y)
+        }
+    }
+    
+Note here there's no early-out in our if-then-else, just two
+conditions either of which might hold, so we use the "else"
+
+we can abbreviate this code a little
+
+    main() {
+        var x float
+
+        fmt.Print("enter a number:")
+        fmt.Scan(&x)
+
+        if y, err := positiveReciprocal(x); err != nil {
+            fmt.Println("error:", err)
+        } else {
+            fmt.Println("result:", y)
+        }
+    }
+
+because Go allows us to prefix a condition (err != nil) with
+a short declaration
+
+in this case, the scope of "y" and "err" is that of the if
+statement's blocks
+
+4.7 Switch & printing weekdays
+
+so, now we're in position to improve on our weekday example
+
+    type weekday int
+
+    const (
+        monday = iota
+        tuesday
+        wednesday
+        thursday
+        friday
+        saturday
+        sunday
+        maxDays
+    )
+
+we want to produce printed output that's more reasonable
+
+    func printDay(w weekday) {
+        if w == monday {
+            fmt.Print("Monday")
+        } else if w == tuesday {
+            fmt.Print("Tuesday")
+        } else if w == wednesday {
+            fmt.Print("Wednesday")
+        } else if w == thursday {
+            fmt.Print("Thursday")
+        } else if w == friday {
+            fmt.Print("Friday")
+        } else if w == saturday {
+            fmt.Print("Saturday")
+        } else if w == sunday {
+            fmt.Print("Sunday")
+        } else {
+            fmt.Print("OOOPS")
+        }
+    }
+
+ugggh!
+
+thankfully Go has a way to make a long if-then chain like
+this
+
+enter the switch statement:
+
+    func printDay(w weekday) {
+        switch w {
+        case monday:
+            fmt.Print("Monday")
+        case tuesday:
+            fmt.Print("Tuesday")
+        case wednesday:
+            fmt.Print("Wednesday")
+        case thursday:
+            fmt.Print("Thursday")
+        case friday:
+            fmt.Print("Friday")
+        case saturday:
+            fmt.Print("Saturday")
+        case sunday:
+            fmt.Print("Sunday")
+        default:
+            fmt.Print("OOOPS")
+        }
+    }
+
+where "default" picks up any other value
+
+this is still not the best way to write this function,
+but it's what we can do with what we know so far
+
+we can also use switch to write another useful function
+
+    func isWeekend(w weekday) bool {
+        switch w {
+        case saturday, sunday:
+            return true
+        default:
+            return false
+        }
+    }
+
+which is equivalent to
+
+    func isWeekend(w weekday) bool {
+        if w == saturday || w == sunday {
+            return true
+        }
+            
+        return false
+    }
+
+either of which is OK
+
+any switch statement can be re-written as a series of if-then
+blocks but many times switch is easier to read
+
+    type month int
+    
+    const (
+        january = iota
+        february
+        march
+        april
+        may
+        june
+        july
+        august
+        september
+        october
+        november
+        december
+    )
+
+    func printSeason(m month) {
+        switch m {
+        case december, january, february:
+            fmt.Println("winter")
+        case march, april, may:
+            fmt.Println("spring")
+        case june, july, august:
+            fmt.Println("summer")
+        case september, october, november:
+            fmt.Println("fall")
+        default:
+            fmt.Println("OOOPS")
+        }
+    }
+
+or even a better example (ignoring leap year!):
+
+    func daysInMonth(m month) int {
+        switch m {
+        case february: // ignore leap year
+            return 28
+        case september, april, june, november:
+            return 30
+        default:
+            return 31
+        }
+    }
+
+5. Strings
+
+well, we've seen one way to print out weekday names but we'd
+really like something better
+
+we want to return a string like "Monday" and not just have a
+function that can only print
+
+to do that we'll need to introduce a new type, string
+
+we've already hpad lots of string literals in our programs,
+mostly in fmt.Println() calls
+
+so the values of type "string" are strings :-)
+
+what about the operations? we're only going to deal with one
+operation now: "+" with strings means "append"
+
+so
+
+    s := "a string"
+    t := s + " and another"
+    
+    fmt.Println(t)
+
+where is could also have been declared
+
+    var s, t string
+    s = "a string"
+    t = s + " and another"
+
+or we could even
+
+    fmt.Println("a string" + " and another")
+
+although that's a bit wordy (why not just have
+the one entire string?)
+
+5.1 Returning weekday names
+
+    func dayAsString(w weekday) string {
+        switch w {
+        case monday:
+            return "Monday"
+        case tuesday:
+            return "Tuesday"
+        case wednesday:
+            return "Wednesday"
+        case thursday:
+            return "Thursday"
+        case friday:
+            return "Friday"
+        case saturday:
+            return "Saturday"
+        case sunday:
+            return "Sunday"
+        default:
+            return "OOOPS"
+        }
+    }
+
+which at least gives us the ability to choose what we want
+to do with the string -- not just print it out
+
+we'll see even better ways to handle this later, but for
+now it's an improvement
+
+5.2 Printf
+
+strings are essential for fancier formatted output; in addition
+to Print() and Println() we have fmt.Printf() which takes a
+"format string"
+
+in that string we can put special characters to direct the
+printing of a string or integer, for example
+
+given
+
+    func nameOfMonth(m month) string { /* a big switch */ }
+    func daysInMonth(m month) int { /* as above */ }
+
+we can do
+
+    var m month = february
+    fmt.Printf("The month of %s has %d days\n", nameOfMonth(m), daysInMonth(m))
+
+where
+
+    %s means insert a string
+    %d means insert an integer number
+    \n means a newline character to end the line
+
+-------
+
+we can go on with some basic string functions, such as subsituting
+or combining
+
+we can't get into indexing strings because that returns a byte not
+a rune -- you have to cast to []rune before you can index characters
+
+** BUT **
+
+if you run a for loop range over a string, you get runes and not
+bytes!
+
+-------
+
+then we need to get into slices and loops (** NO, just loops **)
+
+and then we can get into "what strings are made of"
+
+we could say that strings are sequences of characters, but in fact,
+in Go they're sequences of "runes"
+
+Go supports the full Unicode character set; a Go program is itself
+encoded in UTF-8 (which was invented by one of Go's founders)
+
+Thus a string can have accented or foreign language characters and
+not just those found on the US English keyboard
+
+because they're in UTF-8, strings have a dual life
+- physically they're a sequence of bytes (units of 8 bits)
+- logically they're a sequence of runes
+
+a rune is a single printable character, but some runes require multiple
+bytes to represent in UTF-8
+
+-------
+
