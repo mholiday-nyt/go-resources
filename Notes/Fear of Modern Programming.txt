@@ -1,0 +1,74 @@
+Legendary Productivity And The Fear Of Modern Programming
+https://techcrunch.com/2015/09/11/legendary-productivity-and-the-fear-of-modern-programming/
+
+First, the mere proximity to other engineers fuels greatness. When Rob Pike worked at
+Bell Labs, well before making waves on the Unix team, he recalls fond memories of
+hovering around clunky minicomputers with terminals in a machine room in the Unix
+Room. "The buzz was palpable; the education unparalleled,: he said. “The Unix Room
+may be the greatest cultural reason for the success of Unix as a technology."
+
+...
+
+Second, every great coder, with however pristine a track record, must check in their
+code for a peer review. Pivotal Labs, the company behind the software-scaling success
+of Twitter, Groupon and a dozen other high-growth Silicon Valley startups, requires
+the freedom for any coder to look at any code. It’s simple: If code is too dependent
+on one person, your business is susceptible to dire wounds.
+
+When Collaboration Goes Awry
+
+The truth of the matter is, many programmers simply enjoy blasting through code
+alone. Solo coding is faster, short-term. You don’t have to worry about communication
+mishaps. And things are generally more uniform. Engineer Ben Collins-Sussman once
+asked a room full of programmers:
+
+How many of you work solo? …Crickets…
+
+How many of you LIKE to work solo? Nervous laughter and raised hands spread across
+the room.
+
+Collaborating is a necessary evil for many of the greats, like Norvig, who is now
+Director of Research at Google. Norvig makes the observation that too much
+collaboration is also not as effective. "If you’ve got two good programmers," he
+says, "it’s better for them to work independently and debug each other’s work than to
+say we’ll take 50% hit just for that second set of eyes. 10% of the time it’s good to
+sit down and have that shared understanding. But I think most of the time, you’re not
+going to be as effective."
+
+For collaborating on a project that lacks a clear vision, unlike that of Hansson,
+it’s good to figure out what the problem is together. Once you have an idea, great
+programmers divvy up the work; leave them alone to burn through the code and sync up
+during review. The best collaboration happens by creating a solid feedback loop,
+where you can catch one another’s errors before you’re too far into the project.
+
+
+Visualizing The Program In Your Brain
+
+Nearly every programming legend points to the importance of visualizing solutions and
+being able to hold programs in your head. There’s a lot of productivity lost when you
+dive into code or start testing without first developing a mental model of the
+solution.
+
+...
+
+Interestingly enough, Knuth, Norvig, Dean, Pike, Torvalds, Thompson and Hansson have
+all at one point said they’re believers of having a strong mental model, focus and
+visualization. It’s all about the ability to see the solution before diving into the
+problem.
+
+There’s Joy Inside The Black Box
+
+In Coders at Work, Knuth expresses a major concern for the future of programming if
+young programmers are simply assembling parts without studying them. The neatly
+packaged boxes might be a good short-term solution for speed, but programmers will
+lack the grand visualization that’s necessary for true progress in programming. Plus,
+it’s just not as fun to copy/paste commands without knowing the fundamentals of why
+and how it’s happening.
+
+...
+
+Thompson is downright fearful of modern programming because it’s made up of layers
+upon layers upon layers. "It confuses me to read a program which you must read
+top-down. It says 'do something,' and you go find 'something' and it says 'do
+something else' and it goes back to the top maybe. And nothing gets done. I can’t
+keep it in my mind — I can’t understand it."

@@ -1,0 +1,1654 @@
+more thoughts on go
+
+dotGo 2015 - Rob Pike - Simplicity is Complicated
+https://www.youtube.com/watch?v=rFejpH_tAHM
+
+pike: language influences thought (shapir-whorf)
+most languages are getting more complex (C++)
+language with fewer features begets simplicity
+simplicity begets readability
+[practice of programming: simplicity clarity generality]
+[think unix vs multics]
+
+readable => reliable
+- easier to understand
+- " " work on
+- " " fix
+
+less work to maintain code
+[and not all your programmers are "language lawyers"]
+
+=> necessary features only
+=> simple features with simple interactions
+=> predictability
+=> one (best) way to do things
+
+Go goals:
+- type safety (but easier to work with)
+- interfaces & methods
+- packages
+- concurrency
+- tools & build speed
+
+"simplicity is the art of hiding complexity"
+["simple is not easy" presentation]
+
+things that hide complexity:
+- garbage collection [memory mgt made simple]
+- goroutines & channels [concurrency made simple]
+- interfaces
+- packages
+- unicode
+
+build simple production-ready code easily
+
+simplicity is hard to design & build, easy to use
+
+factors for Go's success:
+- concurrency
+- garbage collection
+- efficient implementation
+- static types but dynamic feel
+- rich but not bloated std library
+- tools
+- gofmt [no more brace wars!]
+- programming in the large
+
+- good, focused language design
+- language stability [v1 freeze]
+- rich ecosystem
+
+areas of improvement:
+- garbage collector & overall performance
+- dependency management
+
+future:
+- generics
+- error handling
+
+========================================================
+
+https://commandcenter.blogspot.com/2012/06/less-is-exponentially-more.html
+
+========================================================
+
+Implementing a bignum calculator - Rob Pike - golang-syd November 2014
+https://www.youtube.com/watch?v=PXoG0WX0r_E 
+["ivy" improved hoc in Go, from TUPE book; arbitrary precision like dc, APL]
+https://go-talks.appspot.com/github.com/robpike/ivy/talks/ivy.slide#1
+docs & code at https://godoc.org/robpike.io/ivy
+
+GopherCon 2016: Rob Pike - The Design of the Go Assembler
+https://www.youtube.com/watch?v=KINIAgRpkDA
+https://github.com/gophercon/2016-talks/tree/master/RobPike-TheDesignOfTheGoAssembler
+
+========================================================
+
+In theory Go should really suck, but in practice it doesn’t.
+-- John Cinnamond
+
+https://www.dotconferences.com/2016/10/john-cinnamond-a-look-at-the-criticism-of-go
+https://www.youtube.com/watch?v=gHCtEjzZ-rY
+
+========================================================
+
+If Go is going to be a language that companies invest in for the long term, the
+maintenance of Go programs, the ease of which they can change, will be a key
+factor in their decision. -- Dave Cheney, Golang UK 2016 keynote
+
+========================================================
+
+"Any fool can write code that a computer can understand. Good programmers write code 
+that humans can understand."
+- Martin Fowler
+
+"Design is the art of arranging code that needs to work today, and to be easy to
+change forever."
+- Sandi Metz
+
+"Within C++ there is a much smaller and cleaner language struggling to get out."
+- Bjarne Stroustrup
+
+========================================================
+
+
+Go Proverbs - Rob Pike - Gopherfest - November 18, 2015
+https://www.youtube.com/watch?v=PAAkCSZUG1c
+http://go-proverbs.github.io
+
+
+Simple, Poetic, Pithy
+
+Don't communicate by sharing memory, share memory by communicating.
+
+Concurrency is not parallelism.
+
+Channels orchestrate; mutexes serialize.
+
+The bigger the interface, the weaker the abstraction.
+
+Make the zero value useful.
+
+interface{} says nothing.
+
+Gofmt's style is no one's favorite, yet gofmt is everyone's favorite.
+
+A little copying is better than a little dependency.
+
+Syscall must always be guarded with build tags.
+
+Cgo must always be guarded with build tags.
+
+Cgo is not Go.
+
+With the unsafe package there are no guarantees.
+
+Clear is better than clever.
+
+Reflection is never clear.
+
+Errors are values.
+
+Don't just check errors, handle them gracefully.
+
+Design the architecture, name the components, document the details.
+
+Documentation is for users.
+
+Don't panic.
+
+========================================================
+
+// interesting approach to fib: recursion through closure
+// Go Tour exercise: https://tour.golang.org/moretypes/26
+// where did this solution come from?
+
+package main
+
+import (
+	"fmt"
+)
+
+func fib() func() int {
+	a, b := 0, 1
+
+	return func() int {
+		a, b = b, a+b
+		return b
+	}
+}
+
+func main() {
+	f := fib()
+	fmt.Println(f(), f(), f(), f(), f(), f())
+}
+
+// prints 1 2 3 5 8 13
+
+=================================================
+// concurrent prime sieve
+// Hoare (1978) -> Gries -> Cargill/McIlroy -> Pike & co
+
+package main
+
+import (
+    "flag"
+    "fmt"
+)
+
+func generate(limit int, ch chan<- int) {
+    for i := 2; i < limit ; i++ {
+        ch <- i
+    }
+    close(ch)
+}
+
+func filter(src <-chan int, dst chan<- int, prime int) {
+    for i := range src {
+        if i % prime != 0 {
+            dst <- i
+        }
+    }
+    close(dst)
+}
+
+func sieve(limit int) {
+    ch := make(chan int)
+    go generate(limit, ch)
+    for {
+        prime, ok := <- ch
+        if !ok {
+            break
+        }
+        fmt.Print(prime, " ")
+        ch1 := make(chan int)
+        go filter(ch, ch1, prime)
+        ch = ch1
+    }
+}
+
+func main() {
+    limit := flag.Int("n", 100, "upper bound")
+    flag.Parse()
+    sieve(*limit)
+}
+
+// prints 2 3 5 7 11 ... 97
+//
+// successively we build up a pipeline of
+// filters in front of the generator
+// [sieve] <- [gen]
+// [sieve] <- [filter 2] <- [gen]
+// [sieve] <- [filter 3] <- [filter 2] <- [gen]
+// ...
+
+===================================================
+Go at Google: Language Design in the Service of Software Engineering
+https://talks.golang.org/2012/splash.article
+
+The Go programming language was conceived in late 2007 as an answer to some of the
+problems we were seeing developing software infrastructure at Google. The computing
+landscape today is almost unrelated to the environment in which the languages being
+used, mostly C++, Java, and Python, had been created. The problems introduced by
+multicore processors, networked systems, massive computation clusters, and the web
+programming model were being worked around rather than addressed head-on. Moreover,
+the scale has changed: today's server programs comprise tens of millions of lines of
+code, are worked on by hundreds or even thousands of programmers, and are updated
+literally every day. To make matters worse, build times, even on large compilation
+clusters, have stretched to many minutes, even hours.
+
+...
+
+Go is efficient, scalable, and productive. Some programmers find it fun to work in;
+others find it unimaginative, even boring.
+
+[side note: Go is being embraced most by older folks with experience in overly-
+complex/bloated stuff, or even those of us who remember spaghetti code and the
+development of structure programming; the more beat up you are, the more you
+appreciate simplicity!]
+
+[aside: new books: Osterhout "Theory of Software Design"; Barr "Problem with 
+Software", and the classics like Pike's own "Practice of Programming", etc.]
+
+...
+
+"Go's purpose is therefore not to do research into programming language design; it is
+to improve the working environment for its designers and their coworkers. Go is more
+about software engineering than programming language research. Or to rephrase, it is
+about language design in the service of software engineering."
+
+...
+
+"It is better to forgo convenience for safety and dependability"
+
+...
+
+"When builds are slow, there is time to think. The origin myth for Go states that it
+was during one of those 45-minute builds that Go was conceived."
+
+[insert XKCD cartoon; https://xkcd.com/303/ or 
+                      https://imgs.xkcd.com/comics/compiling.png]
+
+...
+
+The primary considerations for any language to succeed in this context are:
+
+- It must work at scale, for large programs with large numbers of dependencies, with
+  large teams of programmers working on them.
+
+- It must be familiar, roughly C-like. Programmers working at Google are early in
+  their careers and are most familiar with procedural languages, particularly from
+  the C family. The need to get programmers productive quickly in a new language
+  means that the language cannot be too radical. [think Scala here ...]
+
+- It must be modern. C, C++, and to some extent Java are quite old, designed before
+  the advent of multicore machines, networking, and web application development.
+  There are features of the modern world that are better met by newer approaches,
+  such as built-in concurrency.
+
+...
+
+Go makes many small changes to C semantics, mostly in the service of robustness. 
+These include:
+
+- there is no pointer arithmetic
+- there are no implicit numeric conversions
+- array bounds are always checked
+- there are no type aliases (after type X int, X and int are distinct types not
+  aliases)
+- ++ and -- are statements not expressions
+- assignment is not an expression
+- it is legal (encouraged even) to take the address of a stack variable
+
+...
+
+Type hierarchies result in brittle code. The hierarchy must be designed early, often
+as the first step of designing the program, and early decisions can be difficult to
+change once the program is written. As a consequence, the model encourages early
+overdesign as the programmer tries to predict every possible use the software might
+require, adding layers of type and abstraction just in case. This is upside down. The
+way pieces of a system interact should adapt as it grows, not be fixed at the dawn of
+time.
+
+[this is a powerful indictment of Java which developed along with OO; most Java 
+software is horribly overdesigned/overbuilt]
+
+...
+
+Software engineering guided the design of Go. More than most general-purpose
+programming languages, Go was designed to address a set of software engineering
+issues that we had been exposed to in the construction of large server software.
+Offhand, that might make Go sound rather dull and industrial, but in fact the focus
+on clarity, simplicity and composability throughout the design instead resulted in a
+productive, fun language that many programmers find expressive and powerful.
+
+The properties that led to that include:
+- clear dependencies
+- clear syntax
+- clear semantics
+- composition over inheritance
+- simplicity provided by the programming model (garbage collection, concurrency)
+- easy tooling (the go tool, gofmt, godoc, gofix)
+
+
+================
+
+Projects:
+- Docker
+- Kubernetes
+- etcd
+- Helm
+- Prometheus
+- Grafana
+- Dropbox
+- CloudFlare
+- Basecamp
+- ...
+
+clearly Go has taken the container/cloud/devops world by storm
+
+================
+
+For a particular class of application, which is like, if you’re building a 
+server, I can’t imagine using anything other than Go. [...] I think Node is
+not the best system to build a massive server web. I would use Go for that.
+And honestly, that’s the reason why I left Node.
+
+Ryan Dahl - the creator of Node.js 
+
+https://mappingthejourney.com/single-post/2017/08/31/episode-8-interview-with-ryan-dahl-creator-of-nodejs/
+from
+https://eli.thegreenplace.net/2018/go-hits-the-concurrency-nail-right-on-the-head/
+
+================
+
+
+"Debugging is twice as hard as writing the code in the first place. Therefore if you
+write the code as cleverly as possible, you are, by definition, not smart enough to
+debug it." -- Brian Kernighan
+
+================
+
+"Software Engineering = Programming integrated over time"
+Carmen Andoh, video "The Why of Go" https://youtu.be/bmZNaUcwBt4
+
+from
+
+"Engineering is what happens when things need to live longer and the influence of time
+starts creeping in." - Titus Winters
+
+================
+
+"Simplicity is a great virtue but it requires hard work to achieve it and education
+to appreciate it. And to make matters worse: complexity sells better." ― Edsger W.
+Dijkstra
+
+"In my opinion, the more lines of code you have, the more the design of Go becomes a
+godsend. Because it becomes much easier to dive into code you haven't written
+yourself." -- web comment
+
+================
+
+Rob Pike's 5 Rules of Programming
+
+Rule 1. You can't tell where a program is going to spend its time. Bottlenecks occur
+in surprising places, so don't try to second guess and put in a speed hack until
+you've proven that's where the bottleneck is.
+
+Rule 2. Measure. Don't tune for speed until you've measured, and even then don't
+unless one part of the code overwhelms the rest.
+
+Rule 3. Fancy algorithms are slow when n is small, and n is usually small. Fancy
+algorithms have big constants. Until you know that n is frequently going to be big,
+don't get fancy. (Even if n does get big, use Rule 2 first.)
+
+Rule 4. Fancy algorithms are buggier than simple ones, and they're much harder to
+implement. Use simple algorithms as well as simple data structures.
+
+Rule 5. Data dominates. If you've chosen the right data structures and organized
+things well, the algorithms will almost always be self-evident. Data structures, not
+algorithms, are central to programming.
+
+Pike's rules 1 and 2 restate Tony Hoare's famous maxim "Premature optimization is the
+root of all evil." Ken Thompson rephrased Pike's rules 3 and 4 as "When in doubt, use
+brute force." Rules 3 and 4 are instances of the design philosophy KISS. Rule 5 was
+previously stated by Fred Brooks in The Mythical Man-Month. Rule 5 is often shortened
+to "write stupid code that uses smart objects".
+
+==============
+
+Nearly all the complaints fall into three categories:
+- doesn't have my favorite feature XXX
+- horribly out-of-date language design; should have been Scala
+- no generics = lots of boilerplate code / copy-n-paste code
+
+The third complaint is the one that matters, and is slated to be fixed
+[one could add that many folks would like a little more FP-lite syntactic sugar]
+
+"As it turns out, POP (protocol-oriented programming) is the better design, and so
+all modern languages are using it. POP’s critical feature is generics, so it’s
+baffling as to why Go does not have generics." -- web comment
+
+[to be fair, some of the indignity is because Go's runtime has built-in polymorphism
+that the designer's didn't make available to language users, AND they avoided
+providing some common built-in polymorphic functions: keys(), values(), find(),
+max(), min(), etc.]
+
+[there's no way to create user-defined polymorphic types or to use "range" with
+user-defined types]
+
+[also, lots of negative comments from 2-3 years back on thing that have improved,
+such as dependency management]
+
+https://bravenewgeek.com/go-is-unapologetically-flawed-heres-why-we-use-it/
+
+As Bjarne Stroustrup so eloquently put it, "There are only two kinds of programming
+languages: those people always bitch about and those nobody uses."
+
+"We use Go because it’s boring. ... Go makes it easy to write code that is
+understandable. There’s no “magic” like many enterprise Java frameworks and none of
+the cute tricks you’ll find in most Python or Ruby codebases. The code is verbose but
+readable, unsophisticated but intelligible, tedious but predictable. But the pendulum
+swings too far. So far, in fact, that it sacrifices one of software development’s
+most sacred doctrines, Don’t Repeat Yourself, and it does so unapologetically."
+[this speaks to the lack of generics]
+
+"Go sort of supports generic functions as evidenced by its built-ins. You just can’t
+implement your own. Go sort of supports generic types as evidenced by slices, maps,
+and channels. You just can’t implement your own. Go sort of supports function
+overloading as evidenced again by its built-ins. You just can’t implement your own.
+Go sort of supports exceptions as evidenced by panic and recover. You just can’t
+implement your own. Go sort of supports iterators as evidenced by ranging on slices,
+maps, and channels. You just can’t implement your own."
+
+
+http://nomad.uk.net/articles/why-gos-design-is-a-disservice-to-intelligent-\
+programmers.html
+
+"It’s overly verbose, inexpressive and a disservice to intelligent programmers
+everywhere." [depends on your definition of intelligent ...]
+
+"I felt like a robot writing [in Go]. It was so boring." - web comment
+
+==========
+
+PRO: Programmers don't have to argue over what 10% subet of the language to implement
+in their software project
+
+The language promotes programming in a specific idiomatic style, which helps keep
+every programmer on the same page.
+
+CON: Hard to abstract even the simplest notions
+
+Go is famously regarded as very simple. However, this simplicity becomes problematic
+in time. Programmers who use Go find themselves over and over again writing the same
+thing from a very low point of view. Domains not already served by libraries that are
+easy to glue are very difficult to get into. [so -- build a library already!]
+
+CON: Designed to make the programmer expendable
+
+Go was designed for large team projects where many contributors may be incompetent
+[!!!]. That Go can still get things done under these conditions is a testament to its
+utility in this niche. Go's infamously weak abstraction power is thus a feature, not
+a bug, meant to prevent your teammates from doing too much damage. This also means
+any team member can be easily replaced by another code monkey at minimum cost. Good
+for the company, bad for you. The more talented programmers, on the other hand, will
+be very frustrated by having one hand tied behind their back.
+
+==========
+
+Aside : yak shaving
+https://the-composition.com/a-taxonomy-of-yak-shaving-102da591308b
+
+==========
+
+"Inside every large problem is a small problem struggling to get out." -- Niklaus
+Wirth
+
+Knuth quote: "We should forget about small efficiencies, say about 97% of the time:
+premature optimization is the root of all evil."
+
+[folks forget the first half -- we always need to think about efficiency in the large]
+
+Thompson quote: "The UNIX kernel does not support file access methods, file
+disposition, file formats, file maximum size, spooling, command language, logical
+records, physical records, assignment of logical file names, logical file names, more
+than one character set, an operator's console, an operator, log-in, or log-out. Many
+of these things are symptoms rather than features."
+
+
+From the BSTJ issue:
+
+A number of maxims have gained currency among the builders and users of the UNIX
+system to explain and promote its characteristic style:
+
+  (i) Make each program do one thing well. To do a new job, build afresh rather than
+  complicate old programs by adding new "features."
+
+ (ii) Expect the output of every program to become the input to another, as yet
+unknown, program. Don't clutter output with extraneous information. Avoid stringently
+columnar or binary input formats. Don't insist on interactive input.
+
+(iii) Design and build software, even operating systems, to be tried early, ideally
+within weeks. Don't hesitate to throw away the clumsy parts and rebuild them.
+
+ (iv) Use tools in preference to unskilled help to lighten a programming task, even
+if you have to detour to build the tools and expect to throw some of them out after
+you've finished using them.
+
+
+also:
+
+"The cheapest, fastest and most reliable components of a computer system are those
+that aren't there." -- Ken Thompson
+
+"Deletion is the most important tool of software design." -- Bill Cowan (?, or not
+attributed?)
+
+"If money is your hope for independence you will never have it. The only real
+security that a man will have in this world is a reserve of knowledge, experience,
+and ability." -- Henry Ford.
+
+===============
+
+One web rant against Go says "they should have had Martin Odersky design it", but see
+below:
+
+https://www.theregister.co.uk/2011/05/05/google_go/?page=4
+
+Programming purists take issue with the language. It's not as "beautiful" as they
+would like. It makes those "compromises" Pike speaks of. But some believe those
+compromises aren't compromises at all. "I like a lot of the design decisions they
+made in the language," says Martin Odersky, the creator of Scala, the language does
+concurrency atop the Java virtual machine and remade the Twitter back end.
+"Basically, I like all of them."
+
+Go doesn't force developers to embrace the asynchronous ways of event-driven
+programming. "With goroutines and channels, you can say 'I'm going to send a message
+to another goroutine or wait for a message from another goroutine', but you don't
+have to actually leave the function you're in to do that," [Andrew] Gerrand says.
+"That lets you write asynchronous code in a synchronous style. As people, we're much
+better suited to writing about things in a synchronous style."
+
+"We realized that the kind of software we build at Google is not always served well
+by the languages we had available," Rob Pike tells us. "Robert Griesemer, Ken
+Thompson, and myself decided to make a language that would be very good for writing
+the kinds of programs we write at Google.
+ 
+https://news.ycombinator.com/item?id=9153650
+
+mike_hearn on Mar 5, 2015
+
+I think this can be misleading.
+
+The guys who designed Go have not designed any other popular languages in the decades
+between C and Go. They have not produced any modern developer tools or toolchains.
+Rob Pike's last language before Go was a quasi-DSL called Sawzall, which is a Google
+internal language for logs processing. I had to use it when I was at Google and
+frankly, I would have preferred other languages to have been used and didn't find the
+stated reasons for its creation to be convincing.
+
+If you want to talk to someone who has more modern, relevant experience in language
+design, go talk to someone like Martin Odersky (Scala) or Andrey Breslav (Kotlin).
+Andrey in particular has my respect because whenever a language design point is
+queried he has a well thought out reason for it being that way, often backed by
+evidence from other languages like C#, Scala, Java, functional languages etc or
+experience of building modern developer tools like debuggers and IDEs. Both things
+that Go has a notable poverty of.
+
+enneff on Mar 5, 2015 [-]
+
+> Both things that Go has a notable poverty of.
+
+It surprises me that you say this, since we (the Go team) spend a huge amount of time
+and energy talking about our design decisions. But you must have missed it, because
+the examples you give are wrong.
+
+> For example Google's C++ style guide bans exceptions, partly because writing
+exception safe code in the absence of garbage collection is very hard. So not having
+them in Go won't seem like a big deal to many Googlers. But Go is GCd so that
+rationale doesn't apply, and the others offered are weak.
+
+The rationale for not having exceptions in Go is not about safety, but rather
+readability. When you're programming with exceptions you need to keep in mind a
+second hidden path of control flow.
+
+I think you similarly mischaracterise the argument against assertions. In essence,
+the real reason is that failed assertions produce terrible error messages (that's why
+Go's testing framework doesn't have them either).
+
+While you're talking to Odersky, ask him about Go. (He said: "I like a lot of the
+design decisions they made in the language. Basically, I like all of them.")
+
+=======
+
+Making The Move From Scala To Go, And Why We’re Not Going Back
+https://movio.co/blog/migrate-Scala-to-Go/
+
+- Slow compilation
+- Slow deployments
+- Tooling
+- Developments in the global Scala community
+  "Criticism for object-oriented programming had been lingering in the office for
+   some time, but it hadn’t reached mainstream status until someone shared this blog
+   post by Lawrence Krubner."
+
+http://www.smashcompany.com/technology/object-oriented-programming-is-an-expensive-disaster-which-must-end
+
+https://www.yegor256.com/2016/08/15/what-is-wrong-object-oriented-programming.html
+
++ It's simple to learn
++ Simpler code is more readable code
++ Channels and goroutines have made our job so much easier
++ It compiles fast and runs fast
++ Microservice panacea: from dev-done to deployed in less than a minute on cheap boxes
+
+  "We've found that Go microservices are a great fit for distributed systems.
+
+Consider how well it fits with the requirements:
+
+  - Tiny-sized containers: our average Go docker container is 16.5MB, vs 220MB for
+    Scala
+
+  - Low-memory footprint: mileage may vary; recently, we’ve had a major success when
+    rewriting a crucial microservice from Scala to Go and going from 4G to 300M for
+    the worst-case scenario usage
+
+  - Fast starts and fast shutdowns: just a binary; no need to start a VM
+
+Comment about an observation on difficult Scala code:
+
+"You are a helpful guy but the point of the article is that when they're dealing with
+Go they don't need help from the author of the libraries they use. It's that easy.""
+
+The following is a quote from Raffi Krikorian, Twitter VP of Engineering:
+
+"What I would have done differently four years ago is use Java and not used Scala as
+part of this rewrite. [...] it would take an engineer two months before they're fully
+productive and writing Scala code."
+
+
+=====
+
+http://www.smashcompany.com/technology/object-oriented-programming-is-an-\
+expensive-disaster-which-must-end
+
+Alan Kay wrote “The key in making great and growable systems is much more to design
+how its modules communicate rather than what their internal properties and behaviors
+should be.”
+
+Joshua Bloch, in his book “Effective Java” says, “Favor composition over inheritance”.
+
+======
+
+Quotes About Go Programming
+http://go-lang.cat-v.org/quotes
+
+“After Go, programming in anything else seems as difficult as balancing the State of
+California’s budget.” – Charles Thompson
+
+“Most of the appeal for me is not the features that Go has, but rather the features
+that have been intentionally left out.” – txxxxd in Hacker News
+
+“Go is not meant to innovate programming theory. It’s meant to innovate programming
+practice.” – Samuel Tesla
+
+“One of the reasons I enjoy working with Go is that I can mostly hold the spec in my
+head - and when I do misremember parts it’s a few seconds' work to correct myself.
+It’s quite possibly the only non-trivial language I’ve worked with where this is the
+case.” – Eleanor McHugh
+
+“In Go, the code does exactly what it says on the page.” – Andrew Gerrand
+
+“[the Go authors] designed a language that met the needs of the problems they were
+facing, rather than fulfilling a feature checklist” – ywgdana in reddit
+
+“I have reimplemented a networking project from Scala to Go. Scala code is 6000
+lines. Go is about 3000. Even though Go does not have the power of abbreviation, the
+flexible type system seems to out-run Scala when the programs start getting longer.
+Hence, Go produces much shorter code asymptotically.” – Petar Maymounko
+
+“Go seems to be a counterpoint to the old stroustop adage ‘There are only two kinds
+of languages: the ones people complain about and the ones nobody uses.’ Go seems to
+be a language people complain about without being used.” – tef in reddit.
+
+“Go is like a better C, from the guys that didn’t bring you C++” – Ikai Lan
+
+“Go doesn’t implicitly anything.” – Steven in golang-nuts
+
+“If the few lines [of Go] are that difficult for you, then go type away in Java for a
+few minutes, then come back and tell Rob, Ian, Ken, and Russ that they aren’t mad
+geniuses.” – Cory Mainwaring
+
+“From the tutorial: "The language forces the brace style to some extent.” Well,
+that’s it. If I can’t have a brace-war tearing the dev group apart for months and
+kill productivity, I want nothing to do with that language.“ – SoftwareMaven in
+hackernews
+
+“I like that Go forces you to clean up little messes, like unused variables, for
+example.” – @jkakar (Jamu Kakar)
+
+“Go is no Erlang, Smalltalk or Scheme, nothing pure. But it works great and is fun!”
+– Frank Mueller (@themue)
+
+“If I had to describe Go with one word it’d be ‘sensible’.” – Christoffer Hallas
+
+“Go isn’t functional, it’s pragmatical. Why pure paradigms like FP or OOP are always
+a must? (sigh)” – Frank Mueller (@themue)
+
+“C++ is about objects. Go is about algorithms.” – Unknown
+
+[Go] really fells like “the C for the 21st century” – Petr Hošek
+
+“Oh I love Go. I’ve spent more time coding than debugging and it’s so simple, fast
+and funny…” – Roberto Costumero (@rcostu)
+
+“Why would you have a language that is not theoretically exciting? Because it’s very
+useful.” – Rob Pike paraphrased by Roger Peppe
+
+“Go is such a refreshing language to program in, there is very little clutter just
+the stuff you need to get the job done” – Matt West
+
+“Porting my code review tools to Go from Python. Surprised to see a reduction in line
+counts.” – Scott Dunlop
+
+“As someone who has written a fair bit of code in functional languages and a fair bit
+of Go, I find that the more Go I write the less I care about the language features
+(or lack thereof) that I was horrified by at first, and the more I see most other
+languages as overcomplicated. Go isn’t a very good language in theory, but it’s a
+great language in practice, and practice is all I care about, so I like it quite a
+bit.” – supersillyus in hackernews (full post)
+
+“Porting a Google App Engine app written in Python to Go: Although I’m new to Go I
+get much quicker results than I’ve got with Python. Never used a language before that
+empowers you to solve problems as quick as Go does” – Alexander Orlov
+
+“Go has turned into my go to language when i need to hack stuff. Really a pleasure to
+use.” – Aschobel, Co-founder of Catch.com
+
+“The more i think about what a good language should do for us, i am more and more
+convinced that Go is the best language we have so far.” “Ruby deliberately fights
+against the SOLID principles, whereas Go encourages them” – Steven Degutis, former
+Go-skeptic
+
+“We used it to write our own simple distributed computing software after realizing
+hadoop was too complicated (and thus bug prone) for our embarrassingly parallel
+needs. It took us less time to get the system written, stable and up and running then
+it had to get hadoop setup” – micro_cam in Hacker News
+
+“Go is like a very delicious trifle - the further into it you go, the more delicious
+things you find. The quality is clear throughout. Go is very unassuming. You start by
+wondering what the big deal is + getting annoyed with the minor differences from
+other C-syntax languages before slowly progressing towards quite liking it, then
+eventually once you grok how simple + elegant and well engineered it is you come to
+love it.” – Lorenzo Stoakes
+
+“[Go] is the most elegant imperative language ever (including dynamic ones like Lua,
+Ruby, and Python)” – Quoc Anh Trinh
+
+“Go is most fun I’ve had with a compiled PL since I’ve discovered Turbo Pascal as a
+kid.” – Bojan Marković
+
+“Go has brought together a set of features that make it compact, fast, readable,
+expressive and fun to program in. I’ve programmed seriously in tons of languages
+(both functional and not) and Go is the most fun I’ve had in a long time.” – John
+Graham-Cumming
+
+“Go is that awkward, silent girl that always sits in the back of the bus. Nobody
+quite knows what to make of her, but if you make a tiny bit of effort to get to know
+her, the sex is amazing.” – Jim Teeuwen
+
+“Go is like an oasis in the middle of the desert.” – nsf
+
+“Programming in Go is like being young again (but more productive!).” – Anneli
+
+What Other Language Designers Say about Go
+
+“I like a lot of the design decisions they made in the [Go] language. Basically, I
+like all of them.” – Martin Odersky, creator of Scala
+
+“I think it goes back to the Unix C traditions back to basics and other compiled
+languages and it remedies other deficiencies in C, I don’t think C++ was an
+improvement but I do think Go is a definite improvement on C and we’ve got Kernighan
+and things in the background there and obviously they’ve got wonderful experience on
+building languages. It’s very nicely engineered and actually when it even came out
+impressive documentation, and all this stuff that you need. Even when it first came
+out it has a level of maturity that you would think would actually have been there
+for many years, so it is very impressive actually.” – Joe Armstrong, co-inventor of
+Erlang
+
+“[Go] just works. I don’t have any problems, which is the reason I am writing this
+post. I have used C++, C, and script languages for many years, but started to use Go
+at about a year ago. I am surprised how efficient and effective it is for me. When I
+design a new algorithm, it just works at the first attempt surprisingly often.
+Suddenly, programming is much more fun. I can’t say for sure why, but I think it is a
+combination of many factors.” – Lars Pensjö creator of LPMud and the LPC programming
+language.
+
+“Go is an awesome language and, as this talk illustrates, we aren’t competing with
+Go; Go and Rust have totally different goals and Rob Pike’s languages were quite the
+influence on Rust.” – pcwalton of the Rust Mozilla team
+
+“The complexity of C++ (even more complexity has been added in the new C++), and the
+resulting impact on productivity, is no longer justified. All the hoops that the C++
+programmer had to jump through in order to use a C-compatible language make no sense
+anymore – they’re just a waste of time and effort. Now, Go makes much more sense for
+the class of problems that C++ was originally intended to solve.” – Bruce Eckel,
+author and founding member of the ANSI/ISO C++ standard committee.
+
+“Four out of five language designers agree: Go sucks. The fifth was too busy [to
+answer] actually writing code [in Go].” – aiju
+
+=============
+
+https://blog.golang.org/go-at-heroku
+
+"One of our favorite productivity gains was provided by Go's source formatter: gofmt.
+We never argued over where to put a curly-brace, tabs vs. spaces, or if we should
+align assignments. We simply agreed that the buck stopped at the default output from
+gofmt."
+
+"Go's maniacal focus on simplicity and orthogonality aligns with our view of software
+engineering."
+
+=============
+
+Notes from Rob Pike’s 5/12 talk on Go at Twitter
+https://erikeldridge.wordpress.com/2011/05/12/notes-from-rob-pikes-512-talk-on-go/
+
+- built on 4 self-reinforcing principles: simple, ortho, succinct, safe
+- uses a deterministic model, channels, for concurrency
+
+=============
+
+Why Go is secure:
+- simple, so it's easy to remove security vulnerabilities from the tools/libraries
+- compiled & statically linked, no [ok, few] host dependencies
+- type safety (array bounds checks, etc.; no pointer arithmetic)
+- garbage collection (no corrupting memory)
+- design choices, e.g., randomizing maps against hash attacks
+- full crypto libraries, native go
+- libraries helping to weed out bugs - XSS, SQL injection, etc.
+- explicit favored over implicit, easier to perform security audits;
+  "While this can be maddening to individual programmers it makes code easier for
+  a team to read."
+- easy to build tools for static analysis (some already exist)
+
+https://blog.rapid7.com/2016/07/13/quick-security-wins-in-golang/
+https://github.com/komand/gosea
+https://github.com/Checkmarx/Go-SCP
+
+===========
+
+https://www.upguard.com/blog/our-experience-with-golang
+
+"It is approachable for the whole team. Competent young programmers can pick up Go
+without having seen it before and be productive within hours. Go guides you towards
+writing good code with appropriate error handling. There aren't many bad defaults
+that result in crap. Little discipline/training/experience is needed to start doing
+the 'right' thing compared to most other languages I have encountered so far."
+
+
+===========
+
+Looking for security trouble spots in Go code
+http://0xdabbad00.com/2015/04/12/looking_for_security_trouble_spots_in_go_code/
+
+"Unless you are using compiled libraries (derived from C code or other languages that
+aren't memory safe), you are safe from buffer overflows, use-after-free's, and other
+memory safety bug classes. This still leaves the whole OWASP Top 10.
+[https://www.owasp.org/index.php/OWASP_Top_10] However, there are not known trouble
+spots in Go code from a security perspective."
+
+To not leave you completely empty-handed, if you are auditing web server code, some
+simple things you should check for are:
+
+CSRF protection via the nosurf library.
+
+XSS mitigation via HTTP headers via the unrolled/secure library.
+
+Secure session management via gorilla/sessions which will result in a call to
+
+    sessions.NewCookieStore([]byte("something-very-secret")). 
+
+Make sure something random and secret is used for that byte array, as it will be used
+in an HMAC (using SHA256) to protect the cookie from tampering.
+
+https://www.owasp.org/index.php/Category:OWASP_Top_Ten_Project
+
+Injection (e.g., SQL)
+Broken Authentication
+Sensitive Data Exposure
+XML External Entities (XXE)
+Broken Access Control
+Security Misconfiguration
+Cross-Site Scripting (XSS)
+Insecure Deserialization
+Using Components with Known Vulnerabilities
+Insufficient Logging & Monitoring
+
+
+=================
+
+ESR (Eric S Raymond)
+
+The big break in computer languages
+http://esr.ibiblio.org/?p=7724
+
+At one end of that spectrum you have languages like assembler and (later) C that are
+designed to extract maximum performance at the cost of also pessimizing developer
+time and costs; at the other, languages like Lisp and (later) Python that try to
+automate away as much housekeeping detail as possible, at the cost of pessimizing
+machine performance.
+
+Another is project scale. Every language also has an expected rate of induced defects
+per thousand lines of code due to programmers tripping over leaks and flaws in its
+abstractions. This rate runs higher in machine-centric languages, much lower in
+programmer-centric ones with GC. As project scale goes up, therefore, languages with
+GC become more and more important as a strategy against unacceptable defect rates.
+
+Rust and Go are both explicitly responses to increasing project scale. Where
+scripting languages got started as an effective way to write small programs and
+gradually scaled up, Rust and Go were positioned from the start as ways to reduce
+defect rates in really large projects.
+
+Well before we get to GC that good, I’m putting my bet on Go to replace C anywhere
+that the GC it has now is affordable -- which means not just applications but most
+systems work outside of kernels and embedded. The reason is simple: there is no path
+out of C’s defect rates with lower transition costs.
+
+I’ve been experimenting with moving C code to Go over the last week, and I’m noticing
+two things. One is that it’s easy to do -- C’s idioms map over pretty well. The other
+is that the resulting code is much simpler. One would expect that, with GC in the
+language and maps as a first-class data type, but I’m seeing larger reductions in
+code volume than initially expected -- about 2:1, similar to what I see when moving C
+code to Python.
+
+The long goodbye to C
+http://esr.ibiblio.org/?p=7711
+
+"If I were clean-starting an NTP implementation today, I’d do it in Go without any
+hesitation at all."
+
+========
+
+one complaint about Go: it makes replacing a programmer easier
+
+(a) you can't get promoted if you can't be replaced
+(b) turnover at Google / Amazon etc is high -- average tenure is 1-2 years
+    [13% turnover in tech sector; takes nearly 2 months to hire replacement]
+    [that means hiring 100+ engineers every month; can't all be top 10%]
+
+=================================
+
+
+Concurrency is not parallelism (Pike)
+https://talks.golang.org/2012/waza.slide
+
+The modern world is parallel
+----------------------------
+
+- multicore
+- networks
+- clouds of CPUs
+- loads of users
+
+Our technology should help
+That's where concurrency comes in
+
+Concurrency
+-----------
+
+Programming as the composition of independently executing processes.
+(Processes in the general sense, not Linux processes. Famously hard to define.)
+
+Parallelism
+-----------
+
+Programming as the simultaneous execution of (possibly related) computations.
+
+Concurrency vs. parallelism
+---------------------------
+
+Concurrency is about dealing with lots of things at once.
+Parallelism is about doing lots of things at once.
+Not the same, but related.
+
+Concurrency is about structure, parallelism is about execution.
+
+Concurrency provides a way to structure a solution to solve a problem that may (but
+not necessarily) be parallelizable.
+
+Concurrency plus communication
+------------------------------
+
+Concurrency is a way to structure a program by breaking it into pieces that can be
+executed independently.
+
+Communication is the means to coordinate the independent executions.
+
+This is the Go model and (like Erlang and others) it's based on CSP:
+C. A. R. Hoare: Communicating Sequential Processes (CACM 1978)
+
+
+[The upshot: you can have a concurrent program that doesn't execute in parallel; for
+example, coroutines on a 68k (one CPU / core). If run on a multi-core CPU it could
+then become parallel. However, the design needs to be such that the coroutines don't
+serialize/block each other if you want speedup, which isn't guaranteed.]
+
+=============================
+
+Mat Ryer - GothamGo 2018 talk - Things in Go I never use
+https://www.youtube.com/watch?v=5DVV36uqQ4E&list=PLeGxIOPLk9ELMBvf9FUM_s5Xd-fkPZKkB\
+&index=7&t=0s
+
+also https://medium.com/@matryer/line-of-sight-in-code-186dd7cdea88
+also https://go-talks.appspot.com/github.com/matryer/present/idiomatic-go-tricks/\
+main.slide
+also https://medium.com/statuscode/\
+how-i-write-go-http-services-after-seven-years-37c208122831
+
+and https://godoc.org/github.com/matryer/is
+
+Most people focus on the cost of writing code (ever heard "how long will this take to
+finish?") But the far greater cost is in maintaining code — especially in successful
+projects.
+
+Sweet code
+- Simple
+- Obvious, even boring
+- Glanceability - quick human parsing
+- Self-similar or similar to open source code (in style)
+- Familiar
+- One way to do something
+
+Line-of-sight in code
+- align the "happy path" to the left edge
+- indent error handling and edge cases
+- make early exits where possible (turns around old adage one entry, one exit :)
+- make happy return the last statement if possible
+- avoid "else returns"
+
+    if something.OK() {
+            something.Lock()
+            defer something.Unlock()
+            err := something.Do()
+            if err == nil {
+                    stop := StartTimer()
+                    defer stop()
+                    log.Println("working...")
+                    doWork(something)
+                    <-something.Done() // wait for it
+                    log.Println("finished")
+                    return nil
+            } else {
+                    return err
+            }
+    } else {
+            return errors.New("something not ok")
+    }
+
+Promote big conditional blocks to their own functions
+
+Single method interfaces where possible
+Function type alternatives for single method interfaces
+
+     // The HandlerFunc type is an adapter to allow the use of
+     // ordinary functions as HTTP handlers. If f is a function
+     // with the appropriate signature, HandlerFunc(f) is a
+     // Handler that calls f.
+     type HandlerFunc func(ResponseWriter, *Request)
+     
+     // ServeHTTP calls f(w, r).
+     func (f HandlerFunc) ServeHTTP(w ResponseWriter, r *Request) {
+         f(w, r)
+     }
+
+Log blocks
+
+    func foo() error {
+        log.Println("----------") 
+        defer log.Println("----------")
+
+        //...
+    }
+- sits at the top of the function
+- easy to comment out or remove
+
+    2016/08/16 17:21:33 opening database connection...
+    2016/08/16 17:21:33 read item 92herg9huwh37uhu8i3n98uejrfiosefkj
+    2016/08/16 17:21:33 closing database connection...
+    2016/08/16 17:21:33 ----------
+    2016/08/16 17:21:33 opening database connection...
+    2016/08/16 17:21:33 error for 92herg9huwh37uhu8i3n98uejrfiosefkj
+    2016/08/16 17:21:33 closing database connection...
+    2016/08/16 17:21:33 ----------
+
+(won't work when many goroutines log to the same stream ...)
+
+Return teardown (cancel, etc.) functions
+
+    func TestSomething(t *testing.T) {
+        f, teardown, err := setup(t)
+        defer teardown()
+        if err != nil {
+            t.Error("setup:", err)
+        }
+        // do something with f
+    }
+
+- clean-up code is encapsulated
+- caller doesn't need to worry about cleaning up
+- if setup changes, code that uses it doesn't necessarily need to
+
+Good timing
+
+    func StartTimer(name string) func() {
+        t := time.Now()
+        log.Println(name, "started")
+        return func() {
+            d := time.Now().Sub(t)
+            log.Println(name, "took", d)
+        }
+    }
+
+    func FunkyFunc() {
+        stop := StartTimer("FunkyFunc")
+        defer stop()
+
+        time.Sleep(1 * time.Second)
+    }
+
+    10:00:01 FunkyFunc started
+    10:00:01 FunkyFunc took 1.0014159265s
+
+- capture the state in the closure
+- make things easy for your users
+
+
+Discover interfaces
+
+    // Sizer describes the Size() method that gets the
+    // total size of an item.
+
+    type Sizer interface {
+        Size() int64
+    }
+
+    func Fits(capacity int64, v Sizer) bool {
+        return capacity > v.Size()
+    }
+
+    func IsEmailable(v Sizer) bool {
+        return 1<<20 > v.Size()
+    }
+
+    func (f *File) Size() int64 {
+        return f.info.Size()
+    }
+
+Many items as one
+- add a new type which is a slice of the interface
+
+    type Sizers []Sizer
+
+    func (s Sizers) Size() int64 {
+        var total int64
+
+        for _, sizer := range s {
+            total += sizer.Size()
+        }
+
+        return total
+    }
+
+- the slice type implements the Sizer interface
+- now a set of objects can be used in Fits and IsEmailable functions
+
+Be obvious not clever
+
+    func something() {
+        defer StartTimer("something")()
+    
+        // :-|
+    }
+
+should be
+
+    func something() {
+        stop := StartTimer("something")
+        defer stop()
+
+        // :-)
+    }
+
+How to become a native speaker
+- read the standard library
+- write obvious code (not clever)
+- don't surprise your users
+- seek simplicity
+
+==========================================================
+
+Google Go code review comments https://github.com/golang/go/wiki/CodeReviewComments
+
+Declaring Empty Slices
+
+When declaring an empty slice, prefer
+
+    var t []string
+
+over
+
+    t := []string{}
+
+The former declares a nil slice value, while the latter is non-nil but zero-length.
+They are functionally equivalent—their len and cap are both zero—but the nil slice is
+the preferred style.
+
+Note that there are limited circumstances where a non-nil but zero-length slice is
+preferred, such as when encoding JSON objects (a nil slice encodes to null, while
+[]string{} encodes to the JSON array []).
+
+===========================================================
+
+Russ Cox code index & search tool
+
+https://swtch.com/~rsc/regexp/regexp4.html
+https://github.com/google/codesearch
+
+===========================================================
+
+Golang security checker
+https://github.com/securego/gosec
+
+===========================================================
+
+Pramesti Hatta K
+https://www.slideshare.net/PramestiHattaK/golang-101-concurrency-vs-parallelism
+
+
+Go is an attempt to combine the ease of programming of an interpreted, dynamically 
+typed language with the efficiency and safety of a statically typed, compiled 
+language.
+
+[what follows may have been copied from Pike?]
+
+Concurrency is the composition of independently executing processes
+[says nothing about when they run, i.e. that they run at the same time]
+
+Parallelism is the simultaneous execution of (possibly related) computations
+
+[You can have speedup with goroutines even on a one-core machine, and you can have
+race conditions too, even if there's no real parallelism]
+
+[this is copied from Pike:]
+
+Concurrency is about dealing with lots of things at once
+Parallelism is about doing lots of things at once
+
+Concurrency can enable parallelism
+
+
+=====================================================================
+
+Go: Good, Bad, and Ugly from Sylvain Wallez
+https://bluxte.net/musings/2018/04/10/go-good-bad-ugly/
+
+Go Is Not Good
+https://github.com/ksimka/go-is-not-good
+
+======================================================================
+
+Ardan Labs blog: https://www.ardanlabs.com/blog/
+
+The Behavior Of Channels
+https://www.ardanlabs.com/blog/2017/10/the-behavior-of-channels.html
+
+A whirlwind tour of Go’s runtime environment variables - Dave Cheney
+https://dave.cheney.net/tag/godebug
+GOGC controls the aggressiveness of the garbage collector
+GOTRACEBACK controls the level of detail when a panic hits the top of your program
+GOMAXPROCS controls the number of operating system threads
+
+The contents of GODEBUG are interpreted as a list of name=value pairs separated by 
+commas, where each name is a runtime debugging facility
+- gctrace, including heap scavenger
+- schedtrace
+
+On schedtrace
+https://software.intel.com/en-us/blogs/2014/05/10/debugging-performance-issues-in-go-programs
+
+Profiling Go Programs
+https://blog.golang.org/profiling-go-programs
+
+Gopherpalooza 2018 - Jaana B. Dogan: Tracing Go
+https://www.youtube.com/watch?v=WL3CROd9iGY
+CPDD - critical path driven development
+- discover critical paths
+- make them reliable & fast
+- make them debuggable
+
+using OpenCensus for tracing
+github.com/w3c/distributed-tracing
+
+======================================================================
+
+Good software stuff
+https://github.com/cheekybits
+
+Bloom-filter based search index; how to put assembly into Go with peachpy
+https://github.com/dgryski/go-bloomindex
+
+GoMock
+https://godoc.org/github.com/golang/mock/gomock
+
+======================================================================
+
+Lots more presentations, etc.
+
+https://sean-parent.stlab.cc/papers-and-presentations/#inheritance-is-the-base-class-of-evil
+https://github.com/gophercon/2017-talks
+
+Dave Cheney on compiler optimizations/high performance GO
+https://github.com/davecheney/high-performance-go-workshop
+https://go-talks.appspot.com/github.com/davecheney/high-performance-go-workshop/03-compiler-optimisations/compiler-optimisations.slide#7
+
+LondonGophers 19/09/2018: Liz Rice - A Go Programmer's Guide to Secure Connections
+[maybe the same as GopherCon 2018?]
+https://www.youtube.com/watch?v=OF3TM-b890E
+https://github.com/lizrice/secure-connections
+
+Twelve Go Best Practices - Francesc Campoy
+https://www.youtube.com/watch?v=8D3Vmm1BGoY
+https://talks.golang.org/2013/bestpractices.slide#1
+https://github.com/campoy/go-tooling-workshop
+
+Golang UK Conference 2016 - Dave Cheney - SOLID Go Design
+https://www.youtube.com/watch?v=zzAdEt3xZ1M
+
+Golang UK Conference 2016 - Mat Ryer - Idiomatic Go Tricks
+https://www.youtube.com/watch?v=yeetIgNeIkc
+"happy path to the left"
+
+GothamGo 2017: Closures are the Generics of Go by Jon Bodner
+https://www.youtube.com/watch?v=5IKcPMJXkKs
+
+Gopherpalooza 2018 - Emmanuel Odeke: Go Surgery: a Goroutine and Its Innards
+https://www.youtube.com/watch?v=Xf5Mp-n4rMM
+
+Opening keynote: Go with Versions - GopherConSG 2018
+https://www.youtube.com/watch?v=F8nrpe0XWRg
+
+GopherCon UK 2018: Andre Carvalho - Understanding Go's Memory Allocator
+https://www.youtube.com/watch?v=3CR4UNMK_Is
+
+Golang UK Conference 2017 | Arne Claus - Concurrency Patterns in Go
+https://www.youtube.com/watch?v=rDRa23k70CU
+
+"Mutexes are like toilets, the longer you occupy them, the longer the queue gets"
+
+Golang UK Conference 2016 - Dave Cheney - Seven ways to Profile Go Applications
+https://www.youtube.com/watch?v=2h_NFBFrciI
+
+- unix time command (shell or /usr/bin/time -v [-l on BSD/Mac])
+  (go XXX -toolexec=... allows you to prefix each command e.g., with time)
+- GODEBUG
+- profiling: requires idle machine/stable environment for repeatability
+  (CPU, memory, block [goroutine waiting]; only run one type at a time!)
+- microbenchmarks (profile a function) using Go's test stuff
+- whole program: github.com/pkg/profile; start it in main()
+- /debug/pprof in a running program with an HTTP server
+- unix perf (starting with Go 1.7, needed frame pointers)
+- flame graphs (see preso)
+- go tool trace (goroutine start/stop/block, syscall, network, GC)
+  [need to build with it turned on? also from pkg/profile]
+  [not well documented?]
+
+======================================================================
+
+Golang UK Conference 2017 | Ian Kent - Production-ready Go
+https://www.youtube.com/watch?v=YF1qSfkDGAQ
+code at: https://github.com/ian-kent/production-ready-go
+
+common mistakes
+- client timeouts
+  (e.g., net/http default client doesn't time out on http.Get)
+
+- server timeouts
+  (e.g., http.ListenAndServe doesn't time out; must make server object)
+  
+  server := http.Server{
+      Addr:
+      ReadTimeout:
+      WriteTimeout:
+      IdleTimeout:
+  }
+  
+  also, wrap a handler in http.TimeoutHandler
+
+- OS signals
+    KILL        OS handles, stops process
+    STOP/CONT   " ", pause/resume process
+    QUIT        ctrl-\ core dump [go: stack trace, etc.]
+    INFO        ctrl-t process info
+    PIPE        failed write to an fd
+    INT         ctrl-C
+    TERM        send by kill <pid>; but kill -SIGABRT <pid> dumps stack
+
+    sigCh := make(chan os.Signal)
+    signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+
+- cancellation: not just for servers
+
+  NOTE: http.Request already has a context req.Context() which we should use
+  it will handle cancellation if the client closes the socket!
+
+======================================================================
+
+Golang UK Conference 2017 | Jack Lindamood - How to correctly use package context
+https://www.youtube.com/watch?v=-_B5uQ4UGi0
+
+context.Context exists primarily to handle timeouts all the way down the call chain
+
+it's a tree of immutable nodes (thus safe; you get your copy at your level based
+off the parent node; can cancel only downward ... but value lookup goes upward)
+
+context.Background or get it from http.Request; then make new using either
+WithCancel or WithTimeout or even WithValue or some combination, pass down in calls
+
+from context you can get Deadline() [enough time to continue, or just give up?];
+Done() [chan: recv = we've been cancelled], and Err() [the cancellation reason]
+
+Go style: don't put context in struct (unless it's a *Request struct created at the
+top), but instead pass down the call chain as the FIRST parm of the function call
+[so stateMachine should probably be renamed bviRequest ...]
+
+context with timeout won't GC until time expires, so be sure to cancel it explicitly
+(ideally with defer)
+
+see https://godoc.org/golang.org/x/sync/errgroup for an example; do something
+and cancel exactly once on failure (use it to run two http requests and wait)
+[code: https://github.com/golang/sync/blob/master/errgroup/errgroup.go]
+
+values: scope your keyspace inside your package as private stuff and export only
+GetXXXID() or WithXXXID() functions that operate on a context
+
+NOTE: the stuff stored in a context should be immutable from that point in time on
+[e.g., good place to store transaction ID, security credentials (??), ...]
+
+"request-scoped data" means it exists only while the request is being processed
+[input at beginning or calculated during processing, and then discarded on response]
+
+don't put loggers, DB connections into the context
+"context.Value should inform, not control"
+
+things you could put into context:
+- request ID
+- info for logger decoration
+- tracing stuff (see httptrace)
+
+things that control the logic, so should be parms:
+- user ID
+- authentication
+
+abused due to deep call chains, bad middleware, spaghetti design
+putting values in the context make the API obscure not clean
+
+======================================================================
+
+7 common mistakes in Go and when to avoid them by Steve Francia (Docker)
+https://www.youtube.com/watch?v=29LLRKIL_TI
+"use interfaces", e.g. reader/writer vs byte buffers
+but interfaces should be narrow not broad: reader (1 method) vs file (5+)
+use functions before methods if you can (methods depend on state, not funcs)
+pointers vs values - values are safe for concurrent access (copied)
+errors are things not just strings, you can have more state than just the text
+
+======================================================================
+
+Go Programming - Learn Go in One Video (!)
+https://www.youtube.com/watch?v=CF9S4QZuV30
+
+GOTO 2018 • The Robustness of Go • Francesc Campoy
+https://www.youtube.com/watch?v=40d26ZGfhR8
+
+robust features:
+- memory safety; corruption basically impossible (leaks still possible)
+- bounds checks
+- type safety
+- compiler is strict: no unused vars, no warnings, etc.
+- defer
+- CSP-style concurrency
+
+fragile features:
+- mutable shared state (i.e., go is not a functional language)
+  [ILT: pointers on channels: pass *mutable => change of ownership; else pass 
+   immutable which is safe; but it's up to the programmer to enforce immutability!]
+  [data race detector will find some of these; go run -race]
+- nil pointers, the billion-dollar mistake
+- lack of generics [because you can't build monads to handle errors]
+- panic/recover (exceptions by another name)
+
+dotGo 2015 - Francesc Campoy Flores - Functional Go?
+https://www.youtube.com/watch?v=ouyHp2nJl0I
+
+GopherCon 2016: Francesc Campoy - Understanding nil
+https://www.youtube.com/watch?v=ynoY2xz-F8s
+
+How to optimize Go for really high performance - by Björn Rabenstein
+https://www.youtube.com/watch?v=ZuQcbqYK0BY
+
+Ashley McNamara + Brian Ketelsen. Go best practices
+https://www.youtube.com/watch?v=MzTcsI6tn-0
+
+GopherCon UK 2018: Roberto Clapis - Goroutines: The Dark Side of the Runtime
+https://www.youtube.com/watch?v=4CrL3Ygh7S0
+
+GopherCon EU 2018: Peter Bourgon - Best Practices for Industrial Programming
+https://www.youtube.com/watch?v=PTE4VJIdHPg
+"better to optimize for fast recovery (MTTR) than avoiding failure (MTBF)"
+metrics, logs, traces (OpenTracing [Jaeger, etc.], OpenCensus)
+
+"go test must succeed on all platforms in isolation" 
+- env dependencies (running DB) should be opt-in by a flag (use t.Skip() if not set)
+- arch-specific code (Linux) should have Darwin stubs that pass by default, etc.
+
+GopherCon 2017: Mitchell Hashimoto - Advanced Testing with Go
+https://www.youtube.com/watch?v=8hQG7QlcLBk
+https://speakerdeck.com/mitchellh/advanced-testing-with-go
+
+Concurrency Patterns In Go
+https://www.youtube.com/watch?v=YEKjSzIwAdA
+
+Concurrency Made Easy (Practical Tips For Effective Concurrency In Go)
+https://www.youtube.com/watch?v=DqHb5KBe7qI
+
+GopherCon 2017: Kavya Joshi - Understanding Channels
+https://www.youtube.com/watch?v=KBZlN0izeiY
+
+Building a container from scratch in Go - Liz Rice (Microscaling Systems)
+https://www.youtube.com/watch?v=Utf-A4rODH8
+https://github.com/lizrice/containers-from-scratch
+
+Program your next server in Go
+https://www.youtube.com/watch?v=5bYO60-qYOI
+
+Standard package layout
+https://medium.com/@benbjohnson/standard-package-layout-7cdbc8391fc1
+
+Gopherpalooza 2018 - Ian Lance Taylor: Transition to Go 2
+https://www.youtube.com/watch?v=LqKOY_pH8u0
+
+GopherCon UK 2018: Kat Zien - How do you structure your Go apps?
+https://www.youtube.com/watch?v=VQym87o91f8
+
+Soham Kamani
+https://www.sohamkamani.com/blog/golang
+
+Sean Parent presentations
+https://sean-parent.stlab.cc/papers-and-presentations/
+
+The Beauty of Go
+https://hackernoon.com/the-beauty-of-go-98057e3f0a7d
+
+GopherCon 2018: videos online
+https://tqdev.com/2018-gophercon-2018-videos-online
+
+GopherCon London 2018 Notes
+https://medium.com/@AaronKalair/gophercon-london-2018-notes-3fcc74e266ca
+
+2 4 Google Understanding Go Interfaces - GopherCon China 2017
+https://www.youtube.com/watch?v=F4wUrj6pmSI
+https://speakerdeck.com/campoy/understanding-the-interface
+
+** Take interfaces as parameters, return concrete types as results **
+also, use go guru as a tool to find out who implements what ... or an IDE
+also, see slides for an example of downcasting to a locally-declared interface
+
+Debuggers From Scratch
+Liz Rice — https://twitter.com/lizrice
+Slides — https://speakerdeck.com/lizrice/debuggers-from-scratch
+
+Rapid Web Development with Buffalo
+https://www.gopherguides.com/courses/rapid-web-development-with-buffalo
+
+Postman 
+https://www.getpostman.com
+
+Newman is a command-line collection runner for Postman 
+https://www.npmjs.com/package/newman
+
+Nanolog is an extremely performant nanosecond scale logging system for C++ that
+exposes a simple printf-like API and achieves over 80 million logs/second at a median
+latency of just over 7 nanoseconds.
+
+How it achieves this insane performance is by extracting static log information at
+compile-time, only logging the dynamic components in runtime hotpath, and deferring
+formatting to an offline process. This basically shifts work out of the runtime and
+into the compilation and post-execution phases.
+
+More information about the techniques used in this logging system can be found in the
+paper: https://www.usenix.org/conference/atc18/presentation/yang-stephen
+
+https://github.com/PlatformLab/NanoLog

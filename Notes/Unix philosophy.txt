@@ -1,0 +1,407 @@
+https://en.wikipedia.org/wiki/Unix_philosophy
+
+The Unix philosophy, originated by Ken Thompson, is a set of cultural norms and
+philosophical approaches to minimalist, modular software development. It is based on
+the experience of leading developers of the Unix operating system. Early Unix
+developers were important in bringing the concepts of modularity and reusability into
+software engineering practice, spawning a "software tools" movement. Over time, the
+leading developers of Unix (and programs that ran on it) established a set of
+cultural norms for developing software, norms which became as important and
+influential as the technology of Unix itself; this has been termed the "Unix
+philosophy."
+
+The Unix philosophy emphasizes building simple, short, clear, modular, and extensible
+code that can be easily maintained and repurposed by developers other than its
+creators. The Unix philosophy favors composability as opposed to monolithic design.
+
+Origin 
+------
+
+The UNIX philosophy is documented by Doug McIlroy[1] in the Bell System Technical
+Journal from 1978:[2]
+
+Make each program do one thing well. To do a new job, build afresh rather than
+complicate old programs by adding new "features". Expect the output of every program
+to become the input to another, as yet unknown, program. Don't clutter output with
+extraneous information. Avoid stringently columnar or binary input formats. Don't
+insist on interactive input. Design and build software, even operating systems, to be
+tried early, ideally within weeks. Don't hesitate to throw away the clumsy parts and
+rebuild them. Use tools in preference to unskilled help to lighten a programming
+task, even if you have to detour to build the tools and expect to throw some of them
+out after you've finished using them.
+
+It was later summarized by Peter H. Salus in A Quarter-Century of Unix (1994):[1]
+
+- Write programs that do one thing and do it well. 
+- Write programs to work together. 
+- Write programs to handle text streams, because that is a universal interface. 
+
+In their award-winning Unix paper of 1974, Ritchie and Thompson quote the following
+design considerations:[3]
+
+- Make it easy to write, test, and run programs. 
+- Interactive use instead of batch processing. 
+- Economy and elegance of design due to size constraints ("salvation through
+  suffering"). 
+- Self-supporting system: all Unix software is maintained under Unix. 
+
+The whole philosophy of UNIX seems to stay out of assembler. — Michael Sean Mahoney[4]
+
+The UNIX Programming Environment
+--------------------------------
+
+In their preface to the 1984 book, The UNIX Programming Environment, Brian Kernighan
+and Rob Pike, both from Bell Labs, give a brief description of the Unix design and
+the Unix philosophy:[5]
+
+Even though the UNIX system introduces a number of innovative programs and
+techniques, no single program or idea makes it work well. Instead, what makes it
+effective is the approach to programming, a philosophy of using the computer.
+Although that philosophy can't be written down in a single sentence, at its heart is
+the idea that the power of a system comes more from the relationships among programs
+than from the programs themselves. Many UNIX programs do quite trivial things in
+isolation, but, combined with other programs, become general and useful tools.
+
+The authors further write that their goal for this book is "to communicate the UNIX
+programming philosophy."[5]
+
+Program Design in the UNIX Environment
+--------------------------------------
+
+In October 1984, Brian Kernighan and Rob Pike published a paper called Program Design
+in the UNIX Environment. In this paper, they criticize the accretion of program 
+options and features found in some newer Unix systems such as 4.2BSD and System V,
+and explain the Unix philosophy of software tools, each performing one general 
+function:[6]
+
+Much of the power of the UNIX operating system comes from a style of program design
+that makes programs easy to use and, more important, easy to combine with other
+programs. This style has been called the use of software tools, and depends more on
+how the programs fit into the programming environment and how they can be used with
+other programs than on how they are designed internally. [...] This style was based
+on the use of tools: using programs separately or in combination to get a job done,
+rather than doing it by hand, by monolithic self-sufficient subsystems, or by
+special-purpose, one-time programs.
+
+The authors contrast Unix tools such as cat, with larger program suites used by other
+systems.[6]
+
+The design of cat is typical of most UNIX programs: it implements one simple but
+general function that can be used in many different applications (including many not
+envisioned by the original author). Other commands are used for other functions. For
+example, there are separate commands for file system tasks like renaming files,
+deleting them, or telling how big they are. Other systems instead lump these into a
+single "file system" command with an internal structure and command language of its
+own. (The PIP file copy program found on operating systems like CP/M or RSX-11 is an
+example.) That approach is not necessarily worse or better, but it is certainly
+against the UNIX philosophy.
+
+Doug McIlroy on Unix programming
+--------------------------------
+
+McIlroy, then head of the Bell Labs Computing Sciences Research Center, and inventor
+of the Unix pipe,[7] summarized the Unix philosophy as follows:[1]
+
+This is the Unix philosophy: Write programs that do one thing and do it well. Write
+programs to work together. Write programs to handle text streams, because that is a
+universal interface. Beyond these statements, he has also emphasized simplicity and
+minimalism in Unix programming:[1]
+
+The notion of "intricate and beautiful complexities" is almost an oxymoron. Unix
+programmers vie with each other for "simple and beautiful" honors — a point that's
+implicit in these rules, but is well worth making overt.
+
+Conversely, McIlroy has criticized modern Linux as having software bloat, remarking
+that, "adoring admirers have fed Linux goodies to a disheartening state of
+obesity."[8] He contrasts this with the earlier approach taken at Bell Labs when
+developing and revising Research Unix:[9]
+
+Everything was small... and my heart sinks for Linux when I see the size of it. [...]
+The manual page, which really used to be a manual page, is now a small volume, with a
+thousand options... We used to sit around in the Unix Room saying, 'What can we throw
+out? Why is there this option?' It's often because there is some deficiency in the
+basic design — you didn't really hit the right design point. Instead of adding an
+option, think about what was forcing you to add that option.
+
+Do One Thing and Do It Well
+---------------------------
+
+As stated by McIlroy, and generally accepted throughout the Unix community, Unix
+programs have always been expected to follow the concept of DOTADIW, or "Do One Thing
+and Do It Well." There are limited sources for the acronym DOTADIW on the Internet,
+but it is discussed at length during the development and packaging of new operating
+systems, especially in the Linux community.
+
+Patrick Volkerding, the project lead of Slackware Linux, invoked this design
+principle in a criticism of the systemd architecture, stating that, "attempting to
+control services, sockets, devices, mounts, etc., all within one daemon flies in the
+face of the UNIX concept of doing one thing and doing it well."[10]
+
+Eric Raymond's 17 Unix Rules
+----------------------------
+ 
+In his book The Art of Unix Programming that was first published in 2003,[11] Eric S.
+Raymond, an American programmer and open source advocate, summarizes the Unix
+philosophy as KISS Principle of "Keep it Simple, Stupid."[12] He provides a series of
+design rules:[1]
+
+- Build modular programs 
+- Write readable programs 
+- Use composition 
+- Separate mechanisms from policy 
+- Write simple programs
+- Write small programs 
+- Write transparent programs 
+- Write robust programs 
+- Make data complicated when required, not the program 
+- Build on potential users' expected knowledge 
+- Avoid unnecessary output 
+- Write programs which fail in a way easy to diagnose 
+- Value developer time over machine time 
+- Write abstract programs that generate code instead of writing code by hand 
+- Prototype software before polishing it 
+- Write flexible and open programs 
+- Make the program and protocols extensible. 
+
+Mike Gancarz: The UNIX Philosophy
+---------------------------------
+
+In 1994, Mike Gancarz (a member of the team that designed the X Window System), drew
+on his own experience with Unix, as well as discussions with fellow programmers and
+people in other fields who depended on Unix, to produce The UNIX Philosophy which
+sums it up in 9 paramount precepts:
+
+- Small is beautiful. 
+- Make each program do one thing well. 
+- Build a prototype as soon as possible. 
+- Choose portability over efficiency. 
+- Store data in flat text files. 
+- Use software leverage to your advantage. 
+- Use shell scripts to increase leverage and portability. 
+- Avoid captive user interfaces. 
+- Make every program a filter. 
+
+"Worse is better"
+-----------------
+
+Richard P. Gabriel suggests that a key advantage of Unix was that it embodied a
+design philosophy he termed "worse is better", in which simplicity of both the
+interface and the implementation are more important than any other attributes of the
+system—including correctness, consistency, and completeness. Gabriel argues that this
+design style has key evolutionary advantages, though he questions the quality of some
+results.
+
+For example, in the early days Unix used a monolithic kernel (which means that user
+processes carried out kernel system calls all on the user stack). If a signal was
+delivered to a process while it was blocked on a long-term I/O in the kernel, then
+what should be done? Should the signal be delayed, possibly for a long time (maybe
+indefinitely) while the I/O completed? The signal handler could not be executed when
+the process was in kernel mode, with sensitive kernel data on the stack. Should the
+kernel back-out the system call, and store it, for replay and restart later, assuming
+that the signal handler completes successfully?
+
+In these cases Ken Thompson and Dennis Ritchie favored simplicity over perfection.
+The Unix system would occasionally return early from a system call with an error
+stating that it had done nothing—the "Interrupted System Call", or an error number 4
+(EINTR) in today's systems. Of course the call had been aborted in order to call the
+signal handler. This could only happen for a handful of long-running system calls
+such as read, write, open, and select. On the plus side, this made the I/O system
+many times simpler to design and understand. The vast majority of user programs were
+never affected because they did not handle or experience signals other than SIGINT
+and would die right away if one was raised. For the few other programs—things like
+shells or text editors that respond to job control key presses—small wrappers could
+be added to system calls so as to retry the call right away if this EINTR error was
+raised. Thus, the problem was solved in a simple manner.
+
+Criticism 
+---------
+
+In a 1981 article entitled "The truth about Unix: The user interface is horrid"[13]
+published in Datamation, Don Norman criticized the design philosophy of Unix for its
+lack of concern for the user interface. Writing from his background in cognitive
+science and from the perspective of the then-current philosophy of cognitive
+engineering[4], he focused on how end users comprehend and form a personal cognitive
+model of systems--or, in the case of Unix, fail to understand, with the result that
+disastrous mistakes (such as losing an hour's worth of work) are all too easy.
+
+Notes
+
+1. Raymond, Eric S. (2003-09-23). "Basics of the Unix Philosophy". The Art of Unix
+Programming. Addison-Wesley Professional. ISBN 0-13-142901-9. Retrieved 2016-11-01.
+
+2. Doug McIlroy, E. N. Pinson, B. A. Tague (8 July 1978). "Unix Time-Sharing System:
+Foreword" (PDF). The Bell System Technical Journal. Bell Laboratories. pp. 1902–1903.
+
+3. Dennis Ritchie; Ken Thompson (1974), "The UNIX time-sharing system" (PDF),
+Communications of the ACM, 17 (7): 365–375
+
+4. "An Oral History of Unix". Princeton University History of Science.
+
+5. Kernighan, Brian W. Pike, Rob. The UNIX Programming Environment. 1984. viii 
+
+6. Rob Pike; Brian W. Kernighan (October 1984). "Program Design in the UNIX
+Environment" (PDF).
+
+7. Dennis Ritchie (1984), "The Evolution of the UNIX Time-Sharing System" (PDF), AT&T
+Bell Laboratories Technical Journal, 63 (8): 1577–1593
+
+8. Douglas McIlroy. "Remarks for Japan Prize award ceremony for Dennis Ritchie, May
+19, 2011, Murray Hill, NJ" (PDF). Retrieved 2014-06-19.
+
+9. Bill McGonigle. "Ancestry of Linux — How the Fun Began (2005)". Retrieved
+2014-06-19.
+
+10. "Interview with Patrick Volkerding of Slackware". linuxquestions.org. 2012-06-07.
+Retrieved 2015-10-24.
+
+11. Raymond, Eric (2003-09-19). The Art of Unix Programming. Addison-Wesley. ISBN
+0-13-142901-9. Retrieved 2009-02-09.
+
+12. Raymond, Eric (2003-09-19). "The Unix Philosophy in One Lesson". The Art of Unix
+Programming. Addison-Wesley. ISBN 0-13-142901-9. Retrieved 2009-02-09.
+
+13. Norman, Don (1981). "The truth about Unix: The user interface is horrid" (PDF).
+Datamation (27(12)).
+
+References
+----------
+
+The Unix Programming Environment by Brian Kernighan and Rob Pike, 1984 
+
+Program Design in the UNIX Environment – The paper by Pike and Kernighan that
+preceded the book.
+
+Notes on Programming in C, Rob Pike, September 21, 1989 
+
+A Quarter Century of Unix, Peter H. Salus, Addison-Wesley, May 31, 1994 ( ISBN
+0-201-54777-5)
+
+Philosophy — from The Art of Unix Programming, Eric S. Raymond, Addison-Wesley,
+September 17, 2003 ( ISBN 0-13-142901-9)
+
+Final Report of the Multics Kernel Design Project by M. D. Schroeder, D. D. Clark, J.
+H. Saltzer, and D. H. Wells, 1977.
+
+The UNIX Philosophy, Mike Gancarz, ISBN 1-55558-123-4
+
+
+============
+
+https://en.wikipedia.org/wiki/KISS_principle
+
+KISS, a backronym for "keep it simple, stupid", is a design principle noted by the
+U.S. Navy in 1960.[1][2] The KISS principle states that most systems work best if
+they are kept simple rather than made complicated; therefore simplicity should be a
+key goal in design, and that unnecessary complexity should be avoided. The phrase has
+been associated with aircraft engineer Kelly Johnson.[3] The term "KISS principle"
+was in popular use by 1970.[4] Variations on the phrase include: "Keep it simple,
+silly", "keep it short and simple", "keep it simple and straightforward",[5] "keep it
+small and simple" and "keep it stupid simple".[6]
+
+The acronym was reportedly coined by Kelly Johnson, lead engineer at the Lockheed
+Skunk Works (creators of the Lockheed U-2 and SR-71 Blackbird spy planes, among many
+others).[3]
+
+While popular usage has transcribed it for decades as "Keep it simple, stupid",
+Johnson transcribed it as "Keep it simple stupid" (no comma), and this reading is
+still used by many authors.[7] There was no implicit meaning that an engineer was
+stupid; just the opposite.[3][not in citation given]
+
+The principle is best exemplified by the story of Johnson handing a team of design
+engineers a handful of tools, with the challenge that the jet aircraft they were
+designing must be repairable by an average mechanic in the field under combat
+conditions with only these tools. Hence, the "stupid" refers to the relationship
+between the way things break and the sophistication available to repair them.
+
+"It seems that perfection is reached not when there is nothing left to add, but when
+there is nothing left to take away" -- Antoine de Saint-Exupéry
+
+"Make everything as simple as possible, but not simpler" -- Albert Einstein
+(paraphrase, not apocryphal)
+
+"Better a diamonpd with a flaw than a pebble without." -- Confucius
+
+=====================
+
+Wirth's law is an adage on computer performance which states that software is getting
+slower more rapidly than hardware becomes faster. -- N. Wirth, "A Plea for Lean
+Software," in Computer, vol. 28, no. , pp. 64-68, 1995.
+
+
+Sergey Brin cites a new "Page's Law" named after fellow cofounder Larry Page that
+"Every 18 months software becomes twice as slow as it was prior."
+
+=======================
+
+https://en.wikipedia.org/wiki/Worse_is_better
+
+In The Rise of Worse is Better, Gabriel claimed that "Worse-is-Better" is a model of
+software design and implementation which has the following characteristics (in
+approximately descending order of importance):
+
+Simplicity
+
+The design must be simple, both in implementation and interface. It is more important
+for the implementation to be simple than the interface. Simplicity is the most
+important consideration in a design.
+
+Correctness
+
+The design should be correct in all observable aspects, but It is slightly better to
+be simple than correct.
+
+Consistency
+
+The design must not be overly inconsistent. Consistency can be sacrificed for
+simplicity in some cases, but it is better to drop those parts of the design that
+deal with less common circumstances than to introduce either complexity or
+inconsistency in the implementation.
+
+Completeness
+
+The design must cover as many important situations as is practical. All reasonably
+expected cases should be covered. Completeness can be sacrificed in favor of any
+other quality. In fact, completeness must be sacrificed whenever implementation
+simplicity is jeopardized. Consistency can be sacrificed to achieve completeness if
+simplicity is retained; especially worthless is consistency of interface.
+
+Gabriel argued that early Unix and C, developed by Bell Labs, are examples of this
+design approach.
+
+Gabriel contrasted his philosophy with what he called the "MIT/Stanford style of
+design" or "MIT approach" (also known as "the Right Thing"), which he described as
+follows. Contrasts are in bold:
+
+Simplicity
+
+The design must be simple, both in implementation and interface. It is more important
+for the interface to be simple than the implementation.
+
+Correctness
+
+The design must be correct in all observable aspects. Incorrectness is simply not
+allowed.
+
+Consistency
+
+The design must be consistent. A design is allowed to be slightly less simple and
+less complete to avoid inconsistency. Consistency is as important as correctness.
+
+Completeness
+
+The design must cover as many important situations as is practical. All reasonably
+expected cases must be covered. Simplicity is not allowed to overly reduce
+completeness.
+
+
+=====================
+https://en.wikipedia.org/wiki/Rough_consensus
+
+"rough consensus and running code"
+https://www.ietf.org/about/participate/tao/
+
+Almost every IETF participant knows the aphorism from Dave Clark's 1992 plenary
+presentation [Clark] regarding how we make decisions in the IETF:
+
+- We reject: kings, presidents and voting.
+- We believe in: rough consensus and running code.

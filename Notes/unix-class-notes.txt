@@ -1,0 +1,64 @@
+A brief list of Unix topics you really need
+[loosely based off Effective Comp in Physics by Scopatz & Huff]
+
+1. basic skills
+   - getting around the file system
+   - moving and copying and deleting files & directories
+   - looking at files (head, tail, more)
+   - printing?
+   - getting more information (man, etc.)
+   - file permissions
+   - root, sudo, etc.
+
+1A editing files (basics of vi)
+   
+1B a little more complex
+   - hard & soft links
+   - commands using pipes & IO redirection
+   - also wildcards
+   - finding files
+   - simple regexp
+
+1C your bash profile / login scripts
+   - environment variables
+   - PATH
+   - config files
+
+1D a little shell scripting
+
+2. ssh
+   - setting up
+   - logging in
+   - using screen
+   - sftp
+
+3. other topics
+   - backup
+
+4. python or go
+   - good & bad ways to write programs
+   - documenting & self-documenting
+   - testing
+   - debugging
+
+5. git & github
+   - local version control
+   - remote version control
+   - ticketing
+
+6. latex
+
+7. make
+
+8. a little C programming
+
+9. installing stuff
+   - rpm / deb on linux
+   - brew on Mac
+   - building from source
+
+A. maybe a little system administration
+   - or at least where to look for things
+   - log files
+   - tmp directories
+   
